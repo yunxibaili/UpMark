@@ -246,6 +246,6 @@ def import_single_file(path: str) -> dict:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    root = sys.argv[1] if len(sys.argv) > 1 else "../测试题库"
+    root = sys.argv[1] if len(sys.argv) > 1 else "../test-bank"
     out = import_bank(root)
     print(json.dumps(out, ensure_ascii=False, indent=2))

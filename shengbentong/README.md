@@ -1,4 +1,4 @@
-# 升本通 — 项目总览与导航
+﻿# 升本通 — 项目总览与导航
 
 > 一句话：PC(Windows)自研解析MD当服务器，Flutter App绑定后全量下载、离线刷题、回家同步。
 > 本文档 = 项目入口导航。设计细节分看 `pc_server/设计文档.md` 与 `flutter_app/设计文档.md`。
@@ -42,23 +42,16 @@
 ## 4. 目录导航
 
 ```
-升本通项目/
+D:\dev\upmark\
 ├── README.md                        ← 本文件（总览导航）
-├── docs/                            ← 全部文档
-│   ├── 任务清单.md                   ★全项目唯一任务清单（规则见文件头部）
-│   ├── 需求文档.md                   功能需求唯一来源
-│   ├── MD格式规范v2.0.md            解析语法+E/W码+JSON Schema【冻结】
-│   ├── AI收集题目提示词规范.md       第一道防线：AI出题源头约束【冻结】
-│   ├── API契约.md                    前后端接口JSON契约
-│   ├── 代码生成与审批规范.md          ★硬性红线 / Gate门禁 / PR审查清单
-│   └── 归档/                        已废弃版本存档
-│       ├── MD格式规范v1.0.md
-│       └── 旧Electron技术文档_已废弃.md
-├── pc_server/                       ← 后端（Week1-3）
-│   └── 设计文档.md                   解析器/数据库/API/部署 全在此
-├── flutter_app/                     ← 前端（Week4-10）
-│   └── 设计文档.md                   页面/状态/本地库/同步/UI 全在此
-└── 测试题库/                         ← 多科目测试集（T-101建设中，与计算机题库隔离）
+├── api_contract_v1.json             ← 前后端接口契约（机器可读）
+├── db_snapshot/                     ← 本地DB快照（联调恢复用，不入库）
+├── shengbentong/                    ← 项目主体
+│   ├── 任务清单.md → docs/          ★全项目唯一任务清单在 docs/ 内
+│   ├── docs/ …
+│   ├── pc_server/  flutter_app/
+│   └── test-bank/                   ← 多科目测试集（本地私有）
+└── computer-bank/                   ← 计算机真题库（本地私有）
 ```
 
 > 约定：`广东专升本计算机考试题/` 文件夹是纯题库资产，项目文件一律不放里面。
@@ -106,7 +99,7 @@ curl -X POST http://localhost:8000/api/sync/progress ^
 # 导入题库目录 / 单个md（单文件致命错误返回400+错误明细）
 curl -X POST http://localhost:8000/api/admin/import ^
   -H "Content-Type: application/json" ^
-  -d "{\"path\":\"D:/sbt_testbank\"}"
+  -d "{\"path\":\"D:/dev/upmark/test-bank\"}"
 
 # 管理页(导入/报告/统计/模板) 与 Swagger
 http://localhost:8000/api/admin/page
@@ -116,5 +109,5 @@ http://localhost:8000/docs
 **DB快照恢复**：联调数据弄乱后，用 `db_snapshot/` 内备份覆盖 `pc_server/shengbentong.db` 即可回到661题初始态。
 
 ```powershell
-Copy-Item db_snapshot\upmark_661.db pc_server\shengbentong.db -Force
+Copy-Item db_snapshot\upmark_661.db shengbentong\pc_server\shengbentong.db -Force
 ```

@@ -1,8 +1,9 @@
 # ---- 本地私有数据：不入公开仓库 ----
-广东专升本计算机考试题/
-升本通项目/测试题库/
-升本通项目/pc_server/tests/
-升本通项目/pc_server/scripts/
+computer-bank/
+shengbentong/test-bank/
+shengbentong/pc_server/tests/
+shengbentong/pc_server/scripts/
+db_snapshot/
 
 # ---- Python 产物 ----
 __pycache__/
