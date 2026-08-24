@@ -1,8 +1,11 @@
-# ---- 本地私有数据：不入公开仓库 ----
+﻿# ---- 本地私有数据：不入公开仓库 ----
 computer-bank/
 shengbentong/test-bank/
 shengbentong/pc_server/tests/
 shengbentong/pc_server/scripts/
+db_snapshot/
+.agents/
+.local/
 db_snapshot/
 
 # ---- Python 产物 ----
@@ -23,3 +26,10 @@ venv/
 .idea/
 .DS_Store
 Thumbs.db
+
+skills-lock.json
+.local/
+build/
+**/build/
+**/__pycache__/
+**/*.pyc

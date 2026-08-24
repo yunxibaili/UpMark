@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """管理接口：导入/日志/统计/模板 + 管理页"""
 from __future__ import annotations
 
@@ -136,6 +136,11 @@ def admin_stats(db: Session = Depends(get_db)):
 @router.get("/template", response_class=PlainTextResponse)
 def admin_template(kind: str = "md"):
     if kind == "prompt":
+        return PlainTextResponse(TEMPLATE_PROMPT)
+    if kind == "full":
+        template_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "..", "shengbentong", "docs", "出题模板.md")
+        if os.path.isfile(template_path):
+            return PlainTextResponse(open(template_path, encoding="utf-8").read())
         return PlainTextResponse(TEMPLATE_PROMPT)
     return PlainTextResponse(TEMPLATE_MD)
 
