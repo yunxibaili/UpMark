@@ -186,6 +186,65 @@ def _log(db: Session, subject_id: Optional[int], file_path: str,
                      report_json=json.dumps(report, ensure_ascii=False))
 
 
+def import_single_file(path: str) -> dict:
+    """导入单个练习题.md：供管理接口使用。
+    解析致命失败时返回 ok=False + fatal详情（路由层转HTTP 400）。"""
+    init_db()
+    parser = StrictMDParser()
+    try:
+        text = load_source(open(path, "rb").read())
+    except FileRejected as e:
+        return {"ok": False, "fatal": e.__dict__}
+
+    result = parser.parse_exercises(text, path)
+    if not result.ok:
+        return {"ok": False, "fatal": result.rejected}
+
+    subject_name = result.subject or "未分类"
+    with SessionLocal() as db:
+        subject = db.query(Subject).filter_by(name=subject_name).one_or_none()
+        if subject is None:
+            subject = Subject(name=subject_name,
+                              folder_path=os.path.abspath(path))
+            db.add(subject)
+            db.flush()
+
+        order_num = result.chapter.number or 1
+        chapter = db.query(Chapter).filter_by(
+            subject_id=subject.id, order_num=order_num).one_or_none()
+        if chapter is None:
+            chapter = Chapter(subject_id=subject.id,
+                              title=result.chapter.title,
+                              order_num=order_num)
+            db.add(chapter)
+            db.flush()
+        else:
+            chapter.title = result.chapter.title
+
+        db.query(Question).filter_by(chapter_id=chapter.id).delete()
+        for q in result.questions:
+            db.add(Question(
+                chapter_id=chapter.id,
+                type=q.qtype.value,
+                number=q.raw_number or q.global_seq,
+                global_seq=q.global_seq,
+                material=q.material,
+                stem=q.stem,
+                options=json.dumps(q.options, ensure_ascii=False),
+                answer=q.answer,
+                accepts=(json.dumps(q.accepts, ensure_ascii=False)
+                         if q.accepts else None),
+                explanation=q.explanation,
+                source_line=q.source_line,
+            ))
+        db.commit()
+        return {"ok": True, "subject": subject_name,
+                "chapter": chapter.title, "chapter_id": chapter.id,
+                "imported": len(result.questions),
+                "skippedQuestions": [vars(s) for s in result.skipped_questions],
+                "warnings": [vars(w) for w in result.warnings]}
+
+
 if __name__ == "__main__":  # pragma: no cover
     root = sys.argv[1] if len(sys.argv) > 1 else "../测试题库"
     out = import_bank(root)

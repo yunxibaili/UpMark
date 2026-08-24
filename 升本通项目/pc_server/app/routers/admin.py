@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 
-from ..bulk_importer import import_bank
+from ..bulk_importer import import_bank, import_single_file
 from ..models.database import Chapter, ImportLog, Question, Subject, get_db
 from ..schemas.schemas import ImportRequest
 
@@ -59,6 +59,31 @@ def admin_import(req: ImportRequest, db: Session = Depends(get_db)):
     path = req.path.strip()
     if not os.path.exists(path):
         raise HTTPException(404, f"路径不存在: {path}")
+
+    # ---- 单文件模式：致命错误直接返回HTTP 400 + 具体错误 ----
+    if os.path.isfile(path):
+        result = import_single_file(path)
+        status = "success" if (result["ok"]
+                               and not result["skippedQuestions"]) else "partial"
+        if not result["ok"]:
+            log = ImportLog(file_path=os.path.abspath(path), status="failed",
+                            report_json=json.dumps(result, ensure_ascii=False))
+            db.add(log)
+            db.commit()
+            raise HTTPException(400, detail={
+                "message": "文件未通过格式校验，已拒绝入库",
+                "errors": [result["fatal"]],
+                "hint": "请修正后重新导入；完整规则见《MD格式规范v2.0》",
+            })
+        log = ImportLog(file_path=os.path.abspath(path), status=status,
+                        report_json=json.dumps(result, ensure_ascii=False))
+        db.add(log)
+        db.commit()
+        db.refresh(log)
+        return {"log_id": log.id, "ok": True, "status": status,
+                "report": result}
+
+    # ---- 目录模式 ----
     summary = import_bank(path)
 
     if summary["files_failed"] and summary["questions"] == 0:

@@ -77,6 +77,44 @@
 ## 6. 文档冲突优先级
 
 ```
-需求文档.md ＞ MD格式规范v2.0.md ＞ 两份设计文档 ＞ 本README
+需求文档 ＞ MD格式规范v2.0 ＞ 两份设计文档 ＞ 本README
 ```
 实现与规范冲突 → 视为实现bug。改需求/规范须升版本号。
+
+## 7. T-103 联调速查（复制即用）
+
+> 契约唯一依据：仓库根目录 `api_contract_v1.json`。服务启动：双击 `pc_server/start.bat`
+
+```bash
+# 健康检查（应返回 status:ok 与 stats）
+curl http://localhost:8000/api/health
+
+# 绑定探测
+curl -X POST http://localhost:8000/api/bind
+
+# 全量同步（科目→章节→题目）
+curl http://localhost:8000/api/sync/all
+
+# 单章题目
+curl http://localhost:8000/api/sync/questions/1
+
+# 进度上报（幂等，重复提交按 question_id+answered_at 去重）
+curl -X POST http://localhost:8000/api/sync/progress ^
+  -H "Content-Type: application/json" ^
+  -d "{\"records\":[{\"question_id\":1,\"is_correct\":true,\"in_wrong_book\":true}]}"
+
+# 导入题库目录 / 单个md（单文件致命错误返回400+错误明细）
+curl -X POST http://localhost:8000/api/admin/import ^
+  -H "Content-Type: application/json" ^
+  -d "{\"path\":\"D:/sbt_testbank\"}"
+
+# 管理页(导入/报告/统计/模板) 与 Swagger
+http://localhost:8000/api/admin/page
+http://localhost:8000/docs
+```
+
+**DB快照恢复**：联调数据弄乱后，用 `db_snapshot/` 内备份覆盖 `pc_server/shengbentong.db` 即可回到661题初始态。
+
+```powershell
+Copy-Item db_snapshot\upmark_661.db pc_server\shengbentong.db -Force
+```

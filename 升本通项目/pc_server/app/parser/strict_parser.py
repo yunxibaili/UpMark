@@ -142,6 +142,8 @@ class StrictMDParser:
 
     # ------------------------------------------------------------ 主循环
     def _run(self, text: str, fallback_title: str) -> None:
+        if not text.strip():
+            raise FileRejected("E130", 1, "文件为空（0字节或全部为空白），未解析出任何章节")
         lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
 
         state = "PREAMBLE"                # PREAMBLE/CHAPTER/SECTION/QUESTION/SKIP_SECTION

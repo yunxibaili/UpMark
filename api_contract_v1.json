@@ -1,0 +1,79 @@
+{
+  "contract": "shengbentong-api",
+  "version": "v1",
+  "frozen": true,
+  "schema_version": 1,
+  "base_url": "http://<PC局域网IP>:8000",
+  "enums": {
+    "question_type": ["single_choice", "multiple_choice", "judgment", "fill_blank"],
+    "judge_answer": ["T", "F"],
+    "import_status": ["success", "partial", "failed"]
+  },
+  "endpoints": {
+    "GET /api/health": {
+      "resp": { "status": "ok", "app": "shengbentong", "schema_version": 1,
+                "stats": { "subjects": "int", "chapters": "int", "questions": "int" } }
+    },
+    "POST /api/bind": {
+      "desc": "App首次绑定探测(无鉴权)",
+      "resp": { "status": "bound", "app": "shengbentong", "schema_version": 1 }
+    },
+    "GET /api/sync/all": {
+      "resp": {
+        "schema_version": 1,
+        "exported_at": "ISO8601",
+        "subjects": [
+          { "id": 1, "name": "科目名",
+            "chapters": [
+              { "id": 11, "title": "章节名", "order_num": 1,
+                "knowledge_md": "原始Markdown|null",
+                "questions": [ { "$ref": "#/schemas/question" } ] }
+            ]
+          }
+        ]
+      }
+    },
+    "GET /api/sync/chapters/{subject_id}": "同all内chapter数组(含questions)",
+    "GET /api/sync/questions/{chapter_id}": {
+      "resp": { "chapter_id": 11, "title": "...", "questions": [{ "$ref": "#/schemas/question" }] }
+    },
+    "POST /api/sync/progress": {
+      "body": {
+        "records": [
+          { "question_id": 1, "is_correct": true,
+            "answered_at": "ISO8601可选", 
+            "in_wrong_book": false, "in_favorites": false }
+        ]
+      },
+      "resp": { "accepted": 128, "duplicate_ignored": 3 },
+      "idempotent_key": "(question_id, answered_at)"
+    },
+    "POST /api/admin/import": {
+      "body": { "path": "服务器本地题库根目录或单个练习题.md路径" },
+      "dir_resp": { "log_id": 7, "ok": true, "status": "success|partial|failed", "report": "见数据集文档·导入报告" },
+      "file_resp_ok": { "log_id": 8, "ok": true, "report": { "subject": "...", "chapter": "...", "imported": 15 } },
+      "file_resp_fatal": { "http": 400, "detail": { "message": "...", "errors": [{"code":"E122","line":66,"msg":"..."}] } }
+    },
+    "GET /api/admin/import/{log_id}": "历史报告查询",
+    "GET /api/admin/stats": { "subjects": [{ "name": "...", "chapters": 10, "questions": 386, "by_type": {} }] },
+    "GET /api/admin/template?kind=md|prompt": "text/plain 官方模板"
+  },
+  "schemas": {
+    "question": {
+      "id": "int",
+      "type": "single_choice|multiple_choice|judgment|fill_blank",
+      "number": "int 原始题号",
+      "global_seq": "int 章内重排连续序号",
+      "material": "str|null 【材料】块",
+      "stem": "str 完形填空形态可为空串(配合material)",
+      "options": ["内容A", "内容B", "内容C", "内容D"],
+      "answer": "single:'B' | multiple:'ABD' | judgment:'T'|'F' | blank:原文多空用｜分隔",
+      "accepts": "[[每空候选答案]] | null(fill_blank专用)",
+      "explanation": "str 可为空串"
+    }
+  },
+  "compat_rules": [
+    "schema_version大于App本地值 → App清空本地库重新全量同步",
+    "字段只增不改名；删除字段须升contract大版本"
+  ]
+}

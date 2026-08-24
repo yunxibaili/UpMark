@@ -67,6 +67,13 @@ def health(db: Session = Depends(get_db)):
             "schema_version": SCHEMA_VERSION, "stats": _counts(db)}
 
 
+@router.post("/bind")
+def bind():
+    """App首次绑定探测：确认服务可达且协议版本匹配"""
+    return {"status": "bound", "app": "shengbentong",
+            "schema_version": SCHEMA_VERSION}
+
+
 @router.get("/sync/all")
 def sync_all(db: Session = Depends(get_db)):
     subjects = db.query(Subject).order_by(Subject.name).all()
