@@ -4,205 +4,254 @@
 <meta charset="utf-8">
 <title>升本通 · 管理后台</title>
 <style>
-  body{font-family:"Microsoft YaHei",sans-serif;background:#F5F7FA;margin:0;padding:24px;color:#333}
-  h1{color:#4A90D9;font-size:22px;margin:0 0 20px}
-  h2{font-size:16px;margin:0 0 12px;color:#333}
-  .card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:18px;margin-bottom:18px}
-  input[type=text]{width:60%;padding:8px;border:1px solid #ccc;border-radius:6px}
-  button{background:#4A90D9;color:#fff;border:none;border-radius:6px;padding:8px 18px;margin-left:8px;cursor:pointer;font-size:14px}
-  button:hover{background:#3a7bc0}
-  button:disabled{background:#ccc;cursor:not-allowed}
-  table{border-collapse:collapse;width:100%}
-  th,td{border:1px solid #e3e8ee;padding:6px 10px;text-align:left;font-size:14px}
-  th{background:#eef4fb}
-  pre{background:#f4f6f8;padding:12px;border-radius:6px;max-height:400px;overflow:auto;font-size:12px;white-space:pre-wrap}
-  .ok{color:#52C41A}.warn{color:#fa8c16}.bad{color:#FF4D4F}
-  .err-table{width:100%;border-collapse:collapse;margin-top:8px}
-  .err-table th{background:#fff1f0;color:#cf1322;font-size:12px}
-  .err-table td{font-size:13px;padding:4px 8px}
-  .err-table .code{font-weight:bold;color:#cf1322;font-family:monospace}
-  .section-title{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-  .badge{padding:2px 8px;border-radius:4px;font-size:12px;font-weight:bold}
-  .badge-success{background:#f6ffed;color:#52C41A;border:1px solid #b7eb8f}
-  .badge-partial{background:#fffbe6;color:#fa8c16;border:1px solid #ffe58f}
-  .badge-failed{background:#fff2f0;color:#ff4d4f;border:1px solid #ffccc7}
-  .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
-  .summary-item{text-align:center;padding:10px;border-radius:8px;background:#f8f9fa}
-  .summary-item .num{font-size:28px;font-weight:bold;color:#4A90D9}
-  .summary-item .label{font-size:12px;color:#666}
-  details{margin-top:8px}
-  summary{cursor:pointer;color:#4A90D9;font-size:14px}
-  details[open] summary{margin-bottom:8px}
+:root{--blue:#4A90D9;--green:#52C41A;--red:#FF4D4F;--orange:#fa8c16;--bg:#F5F7FA;--card:#fff}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Microsoft YaHei",sans-serif;background:var(--bg);color:#333}
+.nav{display:flex;gap:0;background:var(--card);border-bottom:2px solid var(--blue);padding:0 20px}
+.nav button{background:none;border:none;padding:14px 24px;font-size:15px;cursor:pointer;color:#666;border-bottom:3px solid transparent;font-weight:500}
+.nav button.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:bold}
+.page{display:none;padding:20px;max-width:1100px;margin:0 auto}
+.page.active{display:block}
+.card{background:var(--card);border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:20px;margin-bottom:16px}
+.card h2{font-size:16px;margin-bottom:12px;color:#333}
+input[type=text]{width:60%;padding:9px 12px;border:1px solid #ccc;border-radius:8px;font-size:14px}
+button{background:var(--blue);color:#fff;border:none;border-radius:8px;padding:9px 20px;cursor:pointer;font-size:14px;transition:background .2s}
+button:hover{background:#3a7bc0}
+button:disabled{background:#ccc;cursor:not-allowed}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid #e3e8ee;padding:7px 12px;text-align:left;font-size:13px}
+th{background:#eef4fb;font-weight:600}
+pre{background:#f4f6f8;padding:14px;border-radius:8px;max-height:400px;overflow:auto;font-size:12px;white-space:pre-wrap;line-height:1.6}
+.badge{padding:3px 10px;border-radius:5px;font-size:12px;font-weight:bold}
+.badge-success{background:#f6ffed;color:var(--green);border:1px solid #b7eb8f}
+.badge-partial{background:#fffbe6;color:var(--orange);border:1px solid #ffe58f}
+.badge-failed{background:#fff2f0;color:var(--red);border:1px solid #ffccc7}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.stat-item{text-align:center;padding:12px;border-radius:10px;background:#f8f9fa}
+.stat-item .num{font-size:30px;font-weight:bold;color:var(--blue)}
+.stat-item .label{font-size:12px;color:#888}
+.subj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:14px 0}
+.subj-card{background:#f8f9fa;border:2px solid #e3e8ee;border-radius:10px;padding:14px 8px;text-align:center;cursor:pointer;transition:all .2s;font-size:14px;font-weight:500}
+.subj-card:hover{border-color:var(--blue);background:#f0f7ff}
+.subj-card.active{border-color:var(--blue);background:#e8f4fd;color:var(--blue);font-weight:bold}
+.prompt-box{width:100%;min-height:300px;padding:14px;border:1px solid #d9d9d9;border-radius:8px;font-family:monospace;font-size:13px;line-height:1.6;resize:vertical;background:#fafafa}
+.hint-box{background:#e8f4fd;border-radius:8px;padding:14px;margin-top:12px;font-size:13px;color:#555;line-height:1.8}
+.hint-box ol{padding-left:20px}
+.hint-box li{margin-bottom:4px}
+.err-table{width:100%;border-collapse:collapse;margin-top:8px}
+.err-table th{background:#fff1f0;color:#cf1322;font-size:12px}
+.err-table td{font-size:13px;padding:5px 8px}
+.err-table .code{font-weight:bold;color:#cf1322;font-family:monospace}
+details{margin-top:10px}
+summary{cursor:pointer;color:var(--blue);font-size:13px}
+.bad{color:var(--red)}.warn{color:var(--orange)}.ok{color:var(--green)}
 </style>
 </head>
 <body>
-<h1>升本通 · 管理后台</h1>
 
-<div class="card">
-  <h2>📥 导入题库</h2>
-  <input id="path" type="text" placeholder="输入服务器上的题库根目录路径，如 D:\dev\upmark\shengbentong\test-bank">
-  <button id="btnImport" onclick="doImport()">导入</button>
-  <span style="margin-left:12px;font-size:13px;color:#666">
-    模板：<a href="/api/admin/template?kind=md" target="_blank">MD格式模板</a> ·
-    <a href="/api/admin/template?kind=prompt" target="_blank">AI出题提示词</a> ·
-    <a href="/api/admin/template?kind=full" target="_blank">完整出题模板(推荐)</a>
-  </span>
+<div class="nav">
+  <button class="active" onclick="switchTab('import',this)">📥 导入题库</button>
+  <button onclick="switchTab('ai',this)">🤖 AI出题</button>
+  <button onclick="switchTab('stats',this)">📈 题库统计</button>
 </div>
 
-<div class="card" id="reportCard" style="display:none">
-  <div class="section-title">
-    <h2>📊 导入报告</h2>
-    <span id="statusBadge" class="badge"></span>
-    <button onclick="copyReport()" style="margin-left:auto">📋 一键复制错误(回喂AI修复)</button>
+<!-- ═══ Tab 1: 导入题库 ═══ -->
+<div id="page-import" class="page active">
+  <div class="card">
+    <h2>导入题库</h2>
+    <input id="path" type="text" placeholder="输入服务器上的题库根目录路径，如 D:\dev\upmark\test-bank">
+    <button id="btnImport" onclick="doImport()">导入</button>
   </div>
 
-  <div class="summary-grid" id="summaryGrid"></div>
-
-  <div id="errSection" style="display:none">
-    <h2 class="bad">❌ 被跳过的题目（点击复制后发给AI修复）</h2>
-    <table class="err-table">
-      <thead><tr><th>文件</th><th>行号</th><th>错误码</th><th>原因</th><th>题干预览</th></tr></thead>
-      <tbody id="errBody"></tbody>
-    </table>
+  <div class="card" id="reportCard" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <h2 style="margin:0">导入报告</h2>
+      <span id="statusBadge" class="badge"></span>
+      <button onclick="copyReport()" style="margin-left:auto;font-size:13px">📋 复制错误(回喂AI)</button>
+    </div>
+    <div class="grid4" id="summaryGrid"></div>
+    <div id="errSection" style="display:none">
+      <h2 class="bad" style="font-size:14px">❌ 被跳过的题目</h2>
+      <table class="err-table"><thead><tr><th>文件</th><th>行号</th><th>错误码</th><th>原因</th><th>题干</th></tr></thead><tbody id="errBody"></tbody></table>
+    </div>
+    <div id="skipSection" style="display:none;margin-top:10px">
+      <h2 class="warn" style="font-size:14px">⏭️ 被跳过的分区</h2>
+      <table class="err-table"><thead><tr><th>分区头</th><th>行号范围</th></tr></thead><tbody id="skipBody"></tbody></table>
+    </div>
+    <div id="warnSection" style="display:none;margin-top:10px">
+      <h2 class="warn" style="font-size:14px">⚠️ 警告</h2>
+      <table class="err-table"><thead><tr><th>文件</th><th>行号</th><th>码</th><th>说明</th></tr></thead><tbody id="warnBody"></tbody></table>
+    </div>
+    <details><summary>原始JSON</summary><pre id="rawJson"></pre></details>
   </div>
-
-  <div id="skipSection" style="display:none">
-    <h2 class="warn">⏭️ 被跳过的分区（主观题/不支持题型）</h2>
-    <table class="err-table">
-      <thead><tr><th>分区头</th><th>起始行</th><th>结束行</th></tr></thead>
-      <tbody id="skipBody"></tbody>
-    </table>
-  </div>
-
-  <div id="warnSection" style="display:none">
-    <h2 class="warn">⚠️ 警告（已自动修复，题目保留）</h2>
-    <table class="err-table">
-      <thead><tr><th>文件</th><th>行号</th><th>警告码</th><th>说明</th></tr></thead>
-      <tbody id="warnBody"></tbody>
-    </table>
-  </div>
-
-  <details>
-    <summary>查看原始JSON</summary>
-    <pre id="rawJson"></pre>
-  </details>
 </div>
 
-<div class="card">
-  <h2>📈 题库统计</h2>
-  <table id="stats"><thead><tr><th>科目</th><th>章节</th><th>题目</th><th>按题型</th></tr></thead><tbody></tbody></table>
+<!-- ═══ Tab 2: AI出题 ═══ -->
+<div id="page-ai" class="page">
+  <div class="card">
+    <h2>🤖 AI出题助手</h2>
+    <p style="font-size:13px;color:#666;margin-bottom:12px">
+      选择科目 → 复制提示词 → 粘贴给 AI（ChatGPT/DeepSeek/Kimi）→ 在末尾放教材内容 → AI回复保存为 .md → 回来导入
+    </p>
+    <div class="subj-grid" id="subjGrid"></div>
+  </div>
+
+  <div class="card" id="promptCard" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <h2 style="margin:0" id="promptTitle">提示词</h2>
+      <button onclick="copyPrompt()" style="margin-left:auto">📋 复制提示词</button>
+      <a href="https://chat.deepseek.com" target="_blank" style="font-size:13px;color:var(--blue)">打开DeepSeek ↗</a>
+      <a href="https://chatgpt.com" target="_blank" style="font-size:13px;color:var(--blue)">打开ChatGPT ↗</a>
+    </div>
+    <textarea id="promptBox" class="prompt-box" readonly></textarea>
+    <div class="hint-box">
+      <b>使用步骤：</b>
+      <ol>
+        <li>点击上方 <b>📋 复制提示词</b></li>
+        <li>打开 AI 对话（DeepSeek / ChatGPT / Kimi 等）</li>
+        <li>粘贴提示词，在末尾放入你的教材/试卷内容</li>
+        <li>AI 回复后，全选复制 → 新建 .md 文件粘贴保存（UTF-8）</li>
+        <li>回到 <b>📥 导入题库</b> 标签页导入该文件</li>
+        <li>如果报错 → 点 <b>📋 复制错误</b> → 粘贴回AI让它修复</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Tab 3: 题库统计 ═══ -->
+<div id="page-stats" class="page">
+  <div class="card">
+    <h2>📈 题库统计</h2>
+    <table id="stats"><thead><tr><th>科目</th><th>章节</th><th>题目</th><th>按题型</th></tr></thead><tbody></tbody></table>
+  </div>
 </div>
 
 <script>
-const typeNames = {single_choice:'单选', multiple_choice:'多选', judgment:'判断', fill_blank:'填空'};
-let lastReport = null;
+const typeNames={single_choice:'单选',multiple_choice:'多选',judgment:'判断',fill_blank:'填空'};
+let lastReport=null, currentSubject='';
 
-async function loadStats(){
-  const r = await fetch('/api/admin/stats'); const d = await r.json();
-  const tb = document.querySelector('#stats tbody'); tb.innerHTML='';
-  for(const s of d.subjects){
-    const types = Object.entries(s.by_type).map(([k,v])=>`${typeNames[k]||k}:${v}`).join(' ');
-    tb.insertAdjacentHTML('beforeend',
-      `<tr><td>${s.name}</td><td>${s.chapters}</td><td>${s.questions}</td><td>${types}</td></tr>`);
-  }
+function switchTab(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='stats') loadStats();
+  if(id==='ai') loadSubjects();
 }
 
+// ═══ 导入 ═══
 async function doImport(){
-  const path = document.getElementById('path').value.trim();
-  if(!path){ alert('请输入路径'); return; }
-  const btn = document.getElementById('btnImport');
-  btn.disabled = true; btn.textContent = '导入中…';
-  try {
-    const r = await fetch('/api/admin/import',{method:'POST',
-        headers:{'Content-Type':'application/json'}, body: JSON.stringify({path})});
-    const d = await r.json();
-    if(r.status===404){ alert(d.detail); return; }
-    if(r.status===400){ alert('导入失败:\n' + JSON.stringify(d.detail,null,2)); return; }
-    lastReport = d;
-    renderReport(d);
-    loadStats();
-  } catch(e) { alert('请求失败: '+e); }
-  finally { btn.disabled=false; btn.textContent='导入'; }
+  const path=document.getElementById('path').value.trim();
+  if(!path){alert('请输入路径');return}
+  const btn=document.getElementById('btnImport');
+  btn.disabled=true;btn.textContent='导入中…';
+  try{
+    const r=await fetch('/api/admin/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path})});
+    const d=await r.json();
+    if(r.status===404){alert(d.detail);return}
+    if(r.status===400){alert('导入失败:\n'+JSON.stringify(d.detail,null,2));return}
+    lastReport=d;renderReport(d);loadStats();
+  }catch(e){alert('请求失败: '+e)}
+  finally{btn.disabled=false;btn.textContent='导入'}
 }
 
 function renderReport(d){
-  const card = document.getElementById('reportCard');
-  card.style.display = 'block';
-  const rep = d.report || {};
-  const badge = document.getElementById('statusBadge');
-  badge.textContent = d.status.toUpperCase();
-  badge.className = 'badge badge-' + d.status;
+  document.getElementById('reportCard').style.display='block';
+  const rep=d.report||{};
+  const badge=document.getElementById('statusBadge');
+  badge.textContent=(d.status||'').toUpperCase();
+  badge.className='badge badge-'+(d.status||'failed');
 
-  // 摘要
-  const sg = document.getElementById('summaryGrid');
-  sg.innerHTML = `
-    <div class="summary-item"><div class="num">${rep.questions ?? 0}</div><div class="label">入库题目</div></div>
-    <div class="summary-item"><div class="num">${rep.files_total ?? 0}</div><div class="label">文件数</div></div>
-    <div class="summary-item"><div class="num warn">${rep.questions_skipped ?? 0}</div><div class="label">跳过题目</div></div>
-    <div class="summary-item"><div class="num warn">${rep.sections_skipped ?? 0}</div><div class="label">跳过分区</div></div>`;
+  document.getElementById('summaryGrid').innerHTML=`
+    <div class="stat-item"><div class="num">${rep.questions??0}</div><div class="label">入库题目</div></div>
+    <div class="stat-item"><div class="num">${rep.files_total??rep.filesTotal??0}</div><div class="label">文件数</div></div>
+    <div class="stat-item"><div class="num" style="color:var(--orange)">${rep.questions_skipped??rep.questionsSkipped??0}</div><div class="label">跳过题目</div></div>
+    <div class="stat-item"><div class="num" style="color:var(--orange)">${rep.sections_skipped??rep.sectionsSkipped??0}</div><div class="label">跳过分区</div></div>`;
 
-  // 跳过题目
-  const skipped = rep.skipped_questions ?? rep.skippedQuestions ?? [];
-  const errSec = document.getElementById('errSection');
-  const errBody = document.getElementById('errBody');
-  errBody.innerHTML = '';
-  if(skipped.length > 0){
-    errSec.style.display = 'block';
-    for(const s of skipped){
-      errBody.insertAdjacentHTML('beforeend',
-        `<tr><td>${s.file ?? '-'}</td><td>${s.line ?? '-'}</td><td class="code">${s.code}</td><td>${s.reason ?? ''}</td><td>${(s.stem_preview ?? '').substring(0,50)}</td></tr>`);
-    }
-  } else { errSec.style.display = 'none'; }
+  const skipped=rep.skipped_questions??rep.skippedQuestions??[];
+  const errSec=document.getElementById('errSection'),errBody=document.getElementById('errBody');
+  errBody.innerHTML='';
+  if(skipped.length){errSec.style.display='block';
+    skipped.forEach(s=>{errBody.insertAdjacentHTML('beforeend',
+      `<tr><td>${(s.file??'-').split(/[\\/]/).pop()}</td><td>${s.line??'-'}</td><td class="code">${s.code}</td><td>${s.reason??''}</td><td>${(s.stem_preview??s.stemPreview??'').substring(0,40)}</td></tr>`)})
+  }else errSec.style.display='none';
 
-  // 跳过分区
-  const sections = rep.skipped_sections ?? rep.skippedSections ?? [];
-  const skipSec = document.getElementById('skipSection');
-  const skipBody = document.getElementById('skipBody');
-  skipBody.innerHTML = '';
-  if(sections.length > 0){
-    skipSec.style.display = 'block';
-    for(const s of sections){
-      skipBody.insertAdjacentHTML('beforeend',
-        `<tr><td>${s.header ?? s.section ?? '-'}</td><td>${s.start_line ?? '-'}</td><td>${s.end_line ?? '-'}</td></tr>`);
-    }
-  } else { skipSec.style.display = 'none'; }
+  const sections=rep.skipped_sections??rep.skippedSections??[];
+  const skipSec=document.getElementById('skipSection'),skipBody=document.getElementById('skipBody');
+  skipBody.innerHTML='';
+  if(sections.length){skipSec.style.display='block';
+    sections.forEach(s=>{skipBody.insertAdjacentHTML('beforeend',
+      `<tr><td>${s.header??s.section??'-'}</td><td>${s.start_line??'-'} ~ ${s.end_line??'-'}</td></tr>`)})
+  }else skipSec.style.display='none';
 
-  // 警告
-  const warnings = rep.warnings ?? [];
-  const warnSec = document.getElementById('warnSection');
-  const warnBody = document.getElementById('warnBody');
-  warnBody.innerHTML = '';
-  if(warnings.length > 0){
-    warnSec.style.display = 'block';
-    for(const w of warnings){
-      warnBody.insertAdjacentHTML('beforeend',
-        `<tr><td>${w.file ?? '-'}</td><td>${w.line ?? '-'}</td><td class="code">${w.code}</td><td>${w.msg ?? ''}</td></tr>`);
-    }
-  } else { warnSec.style.display = 'none'; }
+  const warnings=rep.warnings??[];
+  const warnSec=document.getElementById('warnSection'),warnBody=document.getElementById('warnBody');
+  warnBody.innerHTML='';
+  if(warnings.length){warnSec.style.display='block';
+    warnings.forEach(w=>{warnBody.insertAdjacentHTML('beforeend',
+      `<tr><td>${w.file??'-'}</td><td>${w.line??'-'}</td><td class="code">${w.code}</td><td>${w.msg??''}</td></tr>`)})
+  }else warnSec.style.display='none';
 
-  // 原始JSON
-  document.getElementById('rawJson').textContent = JSON.stringify(rep, null, 2);
+  document.getElementById('rawJson').textContent=JSON.stringify(rep,null,2);
 }
 
 function copyReport(){
-  if(!lastReport) return;
-  const rep = lastReport.report ?? {};
-  const skipped = rep.skipped_questions ?? rep.skippedQuestions ?? [];
-  const sections = rep.skipped_sections ?? rep.skippedSections ?? [];
-  let text = '你刚才输出的文档有部分题目未通过格式校验。\n请重新输出修正后的完整文档，仍然遵守全部铁律。\n\n';
-  if(skipped.length > 0){
-    text += '=== 被跳过的题目 ===\n';
-    for(const s of skipped){
-      text += `- 行${s.line}: [${s.code}] ${s.reason}\n  题干: ${s.stem_preview}\n`;
-    }
-  }
-  if(sections.length > 0){
-    text += '\n=== 被跳过的分区（不需要输出） ===\n';
-    for(const s of sections){ text += `- ${s.header ?? s.section}\n`; }
-  }
-  text += '\n请修复以上问题后重新输出完整文档。';
+  if(!lastReport)return;
+  const rep=lastReport.report??{};
+  const skipped=rep.skipped_questions??rep.skippedQuestions??[];
+  const sections=rep.skipped_sections??rep.skippedSections??[];
+  let text='你刚才输出的文档有部分题目未通过格式校验。\n请重新输出修正后的完整文档，仍然遵守全部铁律。\n';
+  if(skipped.length){text+='\n=== 被跳过的题目 ===\n';
+    skipped.forEach(s=>{text+=`- 行${s.line}: [${s.code}] ${s.reason}\n  题干: ${s.stem_preview??s.stemPreview??''}\n`})}
+  if(sections.length){text+='\n=== 被跳过的分区（不需要输出） ===\n';
+    sections.forEach(s=>{text+=`- ${s.header??s.section}\n`})}
+  text+='\n请修复以上问题后重新输出完整文档。';
   navigator.clipboard.writeText(text);
-  alert('已复制到剪贴板，粘贴给AI即可修复');
+  alert('已复制，粘贴给AI即可修复');
+}
+
+// ═══ AI出题 ═══
+async function loadSubjects(){
+  try{
+    const r=await fetch('/api/admin/subjects');
+    const d=await r.json();
+    const grid=document.getElementById('subjGrid');
+    grid.innerHTML='';
+    (d.subjects||[]).forEach(name=>{
+      const div=document.createElement('div');
+      div.className='subj-card';div.textContent=name;
+      div.onclick=()=>selectSubject(name,div);
+      grid.appendChild(div);
+    });
+  }catch(e){console.error(e)}
+}
+
+async function selectSubject(name,el){
+  document.querySelectorAll('.subj-card').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  currentSubject=name;
+  document.getElementById('promptCard').style.display='block';
+  document.getElementById('promptTitle').textContent=`${name} · 出题提示词`;
+  try{
+    const r=await fetch(`/api/admin/template/subject/${encodeURIComponent(name)}`);
+    document.getElementById('promptBox').value=await r.text();
+  }catch(e){document.getElementById('promptBox').value='加载失败: '+e}
+}
+
+function copyPrompt(){
+  const box=document.getElementById('promptBox');
+  box.select();navigator.clipboard.writeText(box.value);
+  alert('提示词已复制，粘贴给AI即可');
+}
+
+// ═══ 统计 ═══
+async function loadStats(){
+  const r=await fetch('/api/admin/stats');const d=await r.json();
+  const tb=document.querySelector('#stats tbody');tb.innerHTML='';
+  (d.subjects||[]).forEach(s=>{
+    const types=Object.entries(s.by_type).map(([k,v])=>`${typeNames[k]||k}:${v}`).join(' ');
+    tb.insertAdjacentHTML('beforeend',
+      `<tr><td>${s.name}</td><td>${s.chapters}</td><td>${s.questions}</td><td>${types}</td></tr>`)});
 }
 
 loadStats();

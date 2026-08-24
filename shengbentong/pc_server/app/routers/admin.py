@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """管理接口：导入/日志/统计/模板 + 管理页"""
 from __future__ import annotations
 
@@ -143,6 +143,31 @@ def admin_template(kind: str = "md"):
             return PlainTextResponse(open(template_path, encoding="utf-8").read())
         return PlainTextResponse(TEMPLATE_PROMPT)
     return PlainTextResponse(TEMPLATE_MD)
+
+
+_TPL_DIR = os.path.normpath(os.path.join(_WEB_DIR, "..", "..", "docs", "templates"))
+
+
+@router.get("/subjects")
+def list_subjects():
+    """返回所有可用科目模板的文件名列表（不含扩展名）"""
+    if not os.path.isdir(_TPL_DIR):
+        return {"subjects": []}
+    subjects = []
+    for f in sorted(os.listdir(_TPL_DIR)):
+        if f.endswith(".md") and not f.startswith("_"):
+            subjects.append(f[:-3])  # 去 .md 后缀
+    return {"subjects": subjects}
+
+
+@router.get("/template/subject/{name}", response_class=PlainTextResponse)
+def get_subject_template(name: str):
+    """返回指定科目的提示词模板"""
+    safe = os.path.basename(name)  # 防路径穿越
+    path = os.path.join(_TPL_DIR, safe + ".md")
+    if not os.path.isfile(path):
+        raise HTTPException(404, f"模板不存在: {name}")
+    return PlainTextResponse(open(path, encoding="utf-8").read())
 
 
 @router.get("/page", include_in_schema=False)
