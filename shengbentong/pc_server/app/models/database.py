@@ -9,7 +9,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean, CheckConstraint, DateTime, ForeignKey, Integer, Text,
-    UniqueConstraint, create_engine, func,
+    UniqueConstraint, create_engine,
 )
 from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column,
                             relationship, sessionmaker)
@@ -31,7 +31,7 @@ class Subject(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     folder_path: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     chapters: Mapped[list["Chapter"]] = relationship(
         back_populates="subject", cascade="all, delete-orphan",
@@ -92,7 +92,7 @@ class AnswerRecord(Base):
     question_id: Mapped[int] = mapped_column(
         ForeignKey("questions.id", ondelete="CASCADE"), nullable=False)
     is_correct: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    answered_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    answered_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     in_wrong_book: Mapped[bool] = mapped_column(Boolean, default=False)
     in_favorites: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -110,7 +110,7 @@ class ImportLog(Base):
         Text, CheckConstraint("status IN ('success','partial','failed')"),
         nullable=False)
     report_json: Mapped[str | None] = mapped_column(Text)
-    imported_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    imported_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
 def init_db() -> None:
