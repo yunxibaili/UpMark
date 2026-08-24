@@ -139,6 +139,11 @@ details[open] summary{margin-bottom:10px}
       <input id="path" type="text" placeholder="输入服务器上的题库路径（目录或单个 .md 文件），如 D:\dev\upmark\shengbentong\test-bank">
       <button class="btn" id="btnImport" onclick="doImport()">导入</button>
     </div>
+    <div id="dropZone" style="margin-top:12px;border:1.5px dashed #c6cdd6;border-radius:10px;
+        padding:18px;text-align:center;color:var(--sub);font-size:13px;transition:all .15s;cursor:pointer">
+      📎 将 <b>.md</b> 文件或整个题库的 <b>.zip</b> 压缩包拖到此处导入（可多选）
+      <div style="font-size:12px;margin-top:4px;color:#9aa2ab">文件夹请先压缩为zip；也可直接粘贴上方路径导入</div>
+    </div>
     <p class="tip">支持目录递归导入；单个文件致命错误将整份拒绝（E码），题目级缺陷跳过并留痕（W码）。</p>
   </section>
 
@@ -255,6 +260,73 @@ async function loadHealth(){
     document.getElementById('health').innerHTML=
       '<span class="dot" style="background:var(--red);box-shadow:0 0 0 3px rgba(229,72,77,.15)"></span><span>服务未响应</span>';
   }
+}
+
+// ═══ 拖拽上传导入 ═══
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e=>{e.preventDefault();
+  dz.style.borderColor='var(--blue)';dz.style.background='#f4f9ff';dz.style.color='var(--blue)'});
+dz.addEventListener('dragleave', e=>{e.preventDefault(); resetDz()});
+dz.addEventListener('drop', e=>{e.preventDefault(); resetDz(); handleDrop(e.dataTransfer)});
+dz.addEventListener('click', ()=>{ const inp=document.createElement('input');
+  inp.type='file'; inp.multiple=true; inp.accept='.md,.zip';
+  inp.onchange=()=>handleFiles(inp.files); inp.click(); });
+
+function resetDz(){ dz.style.borderColor='#c6cdd6'; dz.style.background=''; dz.style.color='var(--sub)'; }
+
+function handleDrop(dt){
+  if(dt.files && dt.files.length){ handleFiles(dt.files); return; }
+  const items = dt.items ? [...dt.items] : [];
+  const hasDir = items.some(it=>it.webkitGetAsEntry && it.webkitGetAsEntry() && it.webkitGetAsEntry().isDirectory);
+  toast(hasDir ? '文件夹请先压缩为zip后拖入' : '未识别到文件');
+}
+
+async function handleFiles(fileList){
+  const files = [...fileList];
+  if(!files.length) return;
+  for(const f of files){
+    if(!/\.(md|zip)$/i.test(f.name)){ toast(`跳过不支持的文件: ${f.name}`); continue; }
+  }
+  const valid = files.filter(f=>/\.(md|zip)$/i.test(f.name));
+  if(!valid.length) return;
+  const reports = [];
+  let failedDetail = null;
+  for(const f of valid){
+    try{
+      const r = await fetch(`/api/admin/upload?name=${encodeURIComponent(f.name)}`,
+        {method:'POST', body:f, headers:{'Content-Type':'application/octet-stream'}});
+      const d = await r.json();
+      if(r.status===400){ failedDetail = d.detail; break; }
+      if(r.status===404){ toast(d.detail||'路径不存在'); return; }
+      reports.push(d);
+    }catch(e){ toast(`上传失败: ${f.name} — ${e}`); return; }
+  }
+  if(failedDetail){ renderFatal(failedDetail); return; }
+  if(!reports.length) return;
+  lastReport = mergeUploadReports(reports);
+  renderReport(lastReport);
+  loadStats(); loadHealth();
+  toast(`导入完成：${lastReport.report.questions} 题入库（${valid.length}个文件）`);
+}
+
+function mergeUploadReports(reports){
+  if(reports.length===1) return reports[0];
+  const rep = {files_total:0, questions:0, questions_skipped:0, sections_skipped:0,
+    warnings:[], skipped_questions:[], skipped_sections:[]};
+  let worst = 'success';
+  const rank = {success:0, partial:1, failed:2};
+  for(const r of reports){
+    const s = r.report||{};
+    rep.files_total += s.files_total??1;
+    rep.questions += s.questions??0;
+    rep.questions_skipped += s.questions_skipped??0;
+    rep.sections_skipped += s.sections_skipped??0;
+    rep.warnings.push(...(s.warnings||[]));
+    rep.skipped_questions.push(...(s.skipped_questions||s.skippedQuestions||[]));
+    rep.skipped_sections.push(...(s.skipped_sections||s.skippedSections||[]));
+    if(rank[r.status] > rank[worst]) worst = r.status;
+  }
+  return {status:worst, report:rep};
 }
 
 // ═══ 导入 ═══

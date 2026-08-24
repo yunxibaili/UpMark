@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import tempfile
+import zipfile
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 
@@ -185,3 +188,82 @@ def quiz_page():
     if not os.path.isfile(page):
         raise HTTPException(404, "刷题页文件缺失 web/quiz.html")
     return FileResponse(page, media_type="text/html")
+
+
+@router.post("/upload")
+async def admin_upload(request: Request, name: str = Query(...),
+                       db: Session = Depends(get_db)):
+    """T-107+: 拖拽上传导入。原始字节流传输（零新依赖，不用python-multipart）。
+    - .md   → 单文件导入（致命错误HTTP 400 + errors）
+    - .zip  → 解压后按目录递归导入（summary与目录模式一致）
+    响应统一归一化为目录报告形状，前端renderReport直接渲染。"""
+    safe = os.path.basename(name or "").strip()
+    if not (safe.lower().endswith(".md") or safe.lower().endswith(".zip")):
+        raise HTTPException(400, "仅支持 .md 或 .zip 文件")
+    data = await request.body()
+    if not data:
+        raise HTTPException(400, "上传内容为空")
+
+    tmp_root = tempfile.mkdtemp(prefix="upmark_upload_")
+    try:
+        target = os.path.join(tmp_root, safe)
+        with open(target, "wb") as f:
+            f.write(data)
+
+        if safe.lower().endswith(".zip"):
+            extract_dir = os.path.join(tmp_root, "extracted")
+            with zipfile.ZipFile(target) as z:
+                for member in z.namelist():
+                    dest = os.path.normpath(os.path.join(extract_dir, member))
+                    if not dest.startswith(os.path.normpath(extract_dir)):
+                        raise HTTPException(400, f"zip内含非法路径: {member}")
+                z.extractall(extract_dir)
+            summary = import_bank(extract_dir)
+            if summary["files_failed"] and summary["questions"] == 0:
+                status = "failed"
+            elif (summary["files_failed"] or summary["questions_skipped"]
+                    or summary["sections_skipped"]):
+                status = "partial"
+            else:
+                status = "success"
+            log = ImportLog(file_path=f"<upload>{safe}", status=status,
+                            report_json=json.dumps(summary, ensure_ascii=False))
+            db.add(log)
+            db.commit()
+            db.refresh(log)
+            return {"log_id": log.id, "ok": status != "failed",
+                    "status": status, "report": summary}
+
+        # ---- 单 .md 文件 ----
+        result = import_single_file(target)
+        if not result.get("ok"):
+            log = ImportLog(file_path=f"<upload>{safe}", status="failed",
+                            report_json=json.dumps(result, ensure_ascii=False))
+            db.add(log)
+            db.commit()
+            raise HTTPException(400, detail={
+                "message": "文件未通过格式校验，已拒绝入库",
+                "errors": [result["fatal"]],
+                "hint": "请修正后重新拖入；完整规则见《MD格式规范v2.0》",
+            })
+        summary = {
+            "files_total": 1,
+            "questions": result.get("imported", 0),
+            "questions_skipped": len(result.get("skippedQuestions", [])),
+            "sections_skipped": 0,
+            "warnings": result.get("warnings", []),
+            "skipped_questions": result.get("skippedQuestions", []),
+            "skipped_sections": [],
+            "subject": result.get("subject"),
+            "chapter": result.get("chapter"),
+        }
+        status = "success" if summary["questions_skipped"] == 0 else "partial"
+        log = ImportLog(file_path=f"<upload>{safe}", status=status,
+                        report_json=json.dumps(summary, ensure_ascii=False))
+        db.add(log)
+        db.commit()
+        db.refresh(log)
+        return {"log_id": log.id, "ok": True, "status": status,
+                "report": summary}
+    finally:
+        shutil.rmtree(tmp_root, ignore_errors=True)
