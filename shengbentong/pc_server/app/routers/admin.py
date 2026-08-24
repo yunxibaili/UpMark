@@ -176,3 +176,12 @@ def admin_page():
     if not os.path.isfile(index):
         raise HTTPException(404, "管理页文件缺失 web/admin.html")
     return FileResponse(index, media_type="text/html")
+
+
+@router.get("/quiz/page", include_in_schema=False)
+def quiz_page():
+    """T-107: PC网页刷题入口（复用REST API，进度直写SQLite）"""
+    page = os.path.join(_WEB_DIR, "quiz.html")
+    if not os.path.isfile(page):
+        raise HTTPException(404, "刷题页文件缺失 web/quiz.html")
+    return FileResponse(page, media_type="text/html")

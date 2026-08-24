@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>升本通 · 网页刷题</title>
+<style>
+:root{--blue:#4A90D9;--blue-d:#3a7bc0;--green:#16a34a;--red:#e5484d;--orange:#d97706;
+  --bg:#f6f7f9;--card:#fff;--line:#e6e8ec;--ink:#191c1f;--sub:#697077}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI","Microsoft YaHei",-apple-system,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6}
+.topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:12px;
+  padding:0 26px;height:56px;background:rgba(255,255,255,.9);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line)}
+.topbar .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#4A90D9,#35639f);
+  display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.topbar h1{font-size:16px;font-weight:600}
+.topbar .crumb{color:var(--sub);font-size:13px}
+.topbar .spacer{flex:1}
+.topbar button{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 14px;
+  font-size:13px;cursor:pointer;color:var(--ink)}
+.topbar button:hover{border-color:var(--blue);color:var(--blue)}
+main{max-width:860px;margin:0 auto;padding:24px 26px 60px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 1px 2px rgba(16,24,40,.04);padding:20px;cursor:pointer;transition:all .15s}
+.card:hover{border-color:var(--blue);transform:translateY(-2px);box-shadow:0 6px 16px rgba(74,144,217,.12)}
+.card h3{font-size:16px;margin-bottom:6px}
+.card p{font-size:13px;color:var(--sub)}
+.chap{display:flex;align-items:center;gap:14px;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:16px 18px;margin-bottom:12px}
+.chap .idx{width:38px;height:38px;border-radius:10px;background:#eaf3fc;color:var(--blue);
+  display:grid;place-items:center;font-weight:700;flex:none}
+.chap .info{flex:1}.chap .info b{font-size:15px}
+.chap .info p{font-size:12.5px;color:var(--sub)}
+.btn{background:var(--blue);color:#fff;border:none;border-radius:9px;padding:8px 20px;
+  font-size:14px;cursor:pointer;transition:background .15s}
+.btn:hover{background:var(--blue-d)}
+.btn:disabled{background:#c2c8cf;cursor:not-allowed}
+.progress-wrap{height:6px;background:#e9edf2;border-radius:99px;overflow:hidden;margin-bottom:16px}
+.progress-bar{height:100%;background:var(--blue);border-radius:99px;transition:width .25s}
+.qcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:14px}
+.type-chip{display:inline-block;padding:2px 10px;border-radius:6px;font-size:12px;font-weight:600;
+  background:#eaf3fc;color:var(--blue)}
+.material{margin-top:14px;padding:14px;background:#f0f5fc;border:1px solid rgba(74,144,217,.15);
+  border-radius:10px;max-height:260px;overflow:auto;font-size:14px;line-height:1.7;color:#333}
+.stem{margin-top:14px;font-size:16px;line-height:1.7;white-space:pre-wrap}
+.opt{display:flex;align-items:center;gap:12px;border:1.4px solid var(--line);border-radius:10px;
+  padding:12px 14px;margin-top:10px;cursor:pointer;transition:all .12s;font-size:15px}
+.opt:hover{border-color:var(--blue)}
+.opt .letter{width:26px;height:26px;border-radius:50%;background:#eaf3fc;color:var(--blue);
+  display:grid;place-items:center;font-size:13px;font-weight:700;flex:none}
+.opt.picked{border-color:var(--blue);background:#f4f9ff}
+.opt.right{border-color:var(--green);background:#f0fdf4}
+.opt.wrong{border-color:var(--red);background:#fef2f2}
+.opt.disabled{cursor:default;opacity:.92}
+.judge-row{display:flex;gap:12px;margin-top:14px}
+.judge-btn{flex:1;padding:13px;border-radius:10px;border:1.4px solid var(--blue);background:#fff;
+  color:var(--blue);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.judge-btn:hover{background:#f4f9ff}
+.judge-btn.picked{background:var(--blue);color:#fff}
+.judge-btn.right{border-color:var(--green);background:var(--green);color:#fff}
+.judge-btn.wrong{border-color:var(--red);background:var(--red);color:#fff}
+.blank-row{display:flex;gap:10px;margin-top:14px}
+.blank-row input{flex:1;padding:11px 14px;border:1.4px solid var(--line);border-radius:10px;font-size:15px}
+.blank-row input:focus{outline:none;border-color:var(--blue)}
+.confirm-btn{width:100%;margin-top:14px;padding:12px;border:none;border-radius:10px;
+  background:var(--blue);color:#fff;font-size:15px;cursor:pointer}
+.confirm-btn:disabled{background:#c2c8cf;cursor:not-allowed}
+.result{border-radius:14px;padding:16px 18px;margin-bottom:14px;font-size:15px}
+.result.ok{background:#f0fdf4;border:1.5px solid var(--green);color:var(--green);font-weight:600}
+.result.bad{background:#fef2f2;border:1.5px solid var(--red);color:var(--red);font-weight:600}
+.result .detail{margin-top:6px;font-size:13px;color:var(--sub);font-weight:400}
+.explain{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.explain b{color:var(--blue)}
+.explain p{margin-top:6px;font-size:14px;line-height:1.7;color:#444}
+.nav-row{display:flex;gap:12px;margin-top:4px}
+.nav-row .ghost{flex:none;background:#fff;color:var(--ink);border:1px solid var(--line)}
+.nav-row .ghost:hover{color:var(--blue);border-color:var(--blue)}
+.nav-row .ghost:disabled{color:#b6bcc4}
+.summary{text-align:center;padding:40px 20px}
+.summary .big{font-size:44px;font-weight:800;color:var(--blue)}
+.summary p{color:var(--sub);margin:8px 0 20px}
+.empty{text-align:center;color:var(--sub);padding:60px 0}
+#toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(16px);
+  background:#23272c;color:#fff;padding:9px 20px;border-radius:99px;font-size:13px;
+  opacity:0;pointer-events:none;transition:all .25s;z-index:99}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span class="logo">升</span><h1>网页刷题</h1>
+  <span class="crumb" id="crumb"></span>
+  <span class="spacer"></span>
+  <button id="backBtn" onclick="goBack()" style="display:none">← 返回</button>
+  <button onclick="location.reload()">刷新题库</button>
+</header>
+<main id="main"><div class="empty">正在加载题库…</div></main>
+<div id="toast"></div>
+
+<script>
+const typeNames = {single_choice:'单选', multiple_choice:'多选', judgment:'判断', fill_blank:'填空'};
+let DATA = null;                 // {subjects:[...]}
+let view = 'subjects';           // subjects | chapters | quiz
+let curSubject = null, curChapter = null;
+let questions = [], idx = 0;
+const answered = {};             // qid -> {correct, pickedLetters|pickedBool|input}
+const pendingPush = [];          // 上传失败暂存，下次作答时重试
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+async function load(){
+  try{
+    const r = await fetch('/api/sync/all');
+    DATA = await r.json();
+    renderSubjects();
+  }catch(e){
+    document.getElementById('main').innerHTML =
+      '<div class="empty">题库加载失败，请确认PC服务端已启动</div>';
+  }
+}
+
+function countQ(s){ return s.chapters.reduce((n,c)=>n+c.questions.length,0); }
+
+/* ── 科目列表 ── */
+function renderSubjects(){
+  view='subjects'; curSubject=null; curChapter=null;
+  document.getElementById('backBtn').style.display='none';
+  document.getElementById('crumb').textContent='';
+  const subs = DATA.subjects || [];
+  document.getElementById('main').innerHTML = subs.length
+    ? `<div class="grid">${subs.map(s=>`
+        <div class="card" onclick="openSubject(${s.id})">
+          <h3>${s.name}</h3>
+          <p>${s.chapters.length} 章 · ${countQ(s)} 题</p>
+        </div>`).join('')}</div>`
+    : '<div class="empty">题库为空，请先在管理后台导入</div>';
+}
+
+/* ── 章节列表 ── */
+function openSubject(id){
+  curSubject = DATA.subjects.find(s=>s.id===id);
+  view='chapters';
+  document.getElementById('backBtn').style.display='';
+  document.getElementById('crumb').textContent = ' / '+curSubject.name;
+  document.getElementById('main').innerHTML = curSubject.chapters.length
+    ? curSubject.chapters.map(c=>`
+      <div class="chap">
+        <div class="idx">${c.order_num||''}</div>
+        <div class="info"><b>${c.title}</b><p>${c.questions.length} 题</p></div>
+        <button class="btn" ${c.questions.length?'' : 'disabled'}
+          onclick="startQuiz(${c.id})">开始练习</button>
+      </div>`).join('')
+    : '<div class="empty">该科目暂无章节</div>';
+}
+
+/* ── 刷题 ── */
+function startQuiz(chapterId){
+  curChapter = curSubject.chapters.find(c=>c.id===chapterId);
+  questions = curChapter.questions;
+  idx = 0;
+  view='quiz';
+  document.getElementById('crumb').textContent =
+    ' / '+curSubject.name+' / '+curChapter.title;
+  renderQuiz();
+}
+
+function renderQuiz(){
+  const done = questions.filter(q=>answered[q.id]).length;
+  const pct = questions.length ? done/questions.length*100 : 0;
+  const q = questions[idx];
+  const st = answered[q.id];
+  document.getElementById('main').innerHTML = `
+    <div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>
+    <div class="qcard">${qCardHtml(q, st)}</div>
+    <div id="below">${st ? resultHtml(q, st) : ''}</div>
+    <div class="nav-row">
+      <button class="btn ghost" id="prevBtn" ${idx===0?'disabled':''} onclick="move(-1)">← 上一题</button>
+      <span class="spacer" style="flex:1"></span>
+      ${idx===questions.length-1 && done===questions.length
+        ? `<button class="btn" onclick="showSummary()">完成查看成绩</button>`
+        : `<button class="btn" id="nextBtn" ${idx===questions.length-1?'disabled':''} onclick="move(1)">下一题 →</button>`}
+    </div>`;
+  if(!st) focusInput(q);
+}
+
+function qCardHtml(q, st){
+  const multiPicked = st && st.pickedLetters ? st.pickedLetters : [];
+  let html = `<span class="type-chip">${typeNames[q.type]||'题'}</span>
+    <span style="font-size:12px;color:var(--sub);margin-left:8px">第 ${q.number||idx+1} 题</span>`;
+  if(q.material) html += `<div class="material">${esc(q.material)}</div>`;
+  html += `<div class="stem">${esc(q.stem) || '（完形填空 · 根据材料作答）'}</div>`;
+  if(q.type==='judgment'){
+    html += `<div class="judge-row">
+      ${judgeBtn('√', true, q, st)}${judgeBtn('×', false, q, st)}</div>`;
+  }else if(q.type==='fill_blank'){
+    const multi = (q.accepts&&q.accepts.length>1) || (q.answer.split('｜').length>1);
+    html += `<div class="blank-row">
+      <input id="blankInput" placeholder="${multi?'多个空用｜分隔':'输入答案'}" 
+        ${st?'disabled':''} value="${st?esc(st.input||''):''}">
+      ${st?'':`<button class="btn" onclick="submitBlank()">提交</button>`}</div>`;
+  }else{
+    html += (q.options||[]).map((o,i)=>{
+      const letter = String.fromCharCode(65+i);
+      let cls = 'opt';
+      if(st){
+        cls += ' disabled';
+        const truth = q.answer.split('');
+        if(truth.includes(letter)) cls += ' right';
+        else if(multiPicked.includes(letter) || (!q.answer.includes(letter) && st.pickedLetters===undefined && st.pickedLetter===letter)) cls += '';
+        if(st.pickedLetters && multiPicked.includes(letter) && !truth.includes(letter)) cls += ' wrong';
+        if(!st.pickedLetters && st.pickedLetter===letter && q.answer!==letter) cls += ' wrong';
+      }
+      const pickedNow = !st && ((q.type==='multiple_choice' && pickedSet.has(letter)) ||
+                                (q.type==='single_choice' && pickedSet.has(letter)));
+      if(pickedNow) cls += ' picked';
+      return `<div class="${cls}" onclick="pickOption('${letter}')">
+        <span class="letter">${letter}</span><span>${esc(o)}</span></div>`;
+    }).join('');
+    if(q.type==='multiple_choice' && !st){
+      html += `<button class="confirm-btn" id="confirmMulti"
+        ${pickedSet.size<2?'disabled':''} onclick="confirmMulti()">
+        ${pickedSet.size?`确认作答（已选 ${[...pickedSet].join('')}）`:'请选择答案（可多选）'}</button>`;
+    }
+  }
+  return html;
+}
+
+function judgeBtn(label, val, q, st){
+  let cls = 'judge-btn';
+  if(st){
+    cls += ' disabled';
+    const truth = q.answer==='√';
+    if(truth===val) cls += ' right';
+    else if(st.pickedBool===val) cls += ' wrong';
+  }else if(pickedJudge===val) cls += ' picked';
+  return `<button class="${cls}" onclick="pickJudge(${val})">${label==='√'?'✓ 正确':'✗ 错误'}</button>`;
+}
+
+/* ── 作答交互 ── */
+let pickedSet = new Set();
+let pickedJudge = null;
+
+function focusInput(q){ if(q.type==='fill_blank'){ const el=document.getElementById('blankInput'); if(el) el.focus(); } }
+
+function pickOption(letter){
+  const q = questions[idx];
+  if(answered[q.id]) return;
+  if(q.type==='multiple_choice'){
+    pickedSet.has(letter) ? pickedSet.delete(letter) : pickedSet.add(letter);
+    renderQuiz();
+  }else{
+    submitSingle(letter);
+  }
+}
+
+function confirmMulti(){
+  const q = questions[idx];
+  if(answered[q.id] || pickedSet.size===0) return;
+  finish([...pickedSet].sort().join(''));
+}
+
+function submitSingle(letter){ finish(letter); }
+
+function pickJudge(val){
+  const q = questions[idx];
+  if(answered[q.id]) return;
+  pickedJudge = val;
+  finish(val);
+}
+
+function submitBlank(){
+  const q = questions[idx];
+  const v = document.getElementById('blankInput').value.trim();
+  if(!v){ toast('请输入答案'); return; }
+  finish(v);
+}
+
+function normalize(s){ return s.replace(/\s+/g,'').replace(/；/g,';').toUpperCase(); }
+
+function evaluate(q, pick){
+  if(q.type==='single_choice') return normalize(pick)===normalize(q.answer);
+  if(q.type==='multiple_choice'){
+    const got=[...normalize(pick)].sort().join('');
+    const truth=[...normalize(q.answer)].sort().join('');
+    return got===truth;
+  }
+  if(q.type==='judgment') return pick===(q.answer==='√');
+  // fill_blank：按｜分段比对，支持;备选
+  const blankCount=(q.stem.match(/_{3,}/g)||[]).length;
+  let expected;
+  if(q.accepts&&q.accepts.length) expected=q.accepts;
+  else{
+    expected=q.answer.split('｜').map(seg=>seg.split(';').map(normalize).filter(Boolean));
+    if(expected.length!==blankCount&&blankCount>1) return false;
+  }
+  const user=normalize(pick).split('｜');
+  if(user.length!==expected.length&&expected.length>1) return false;
+  for(let i=0;i<expected.length;i++){
+    const alts=new Set(expected[i].flatMap(a=>a.split(';')).map(normalize).filter(Boolean));
+    const u=(user[i]||'');
+    if(u&&!alts.has(u)) return false;
+  }
+  return true;
+}
+
+function finish(pick){
+  const q = questions[idx];
+  const correct = evaluate(q, pick);
+  answered[q.id] = {
+    correct,
+    pickedLetters: Array.isArray(pick) ? pick : (q.type==='multiple_choice'? [...pickedSet] : undefined),
+    pickedLetter: typeof pick==='string' && q.type==='single_choice' ? pick : undefined,
+    pickedBool: q.type==='judgment' ? pick : undefined,
+    input: q.type==='fill_blank' ? pick : undefined,
+  };
+  pushProgress(q, correct);
+  pickedSet.clear(); pickedJudge=null;
+  renderQuiz();
+  toast(correct ? '回答正确 ✓' : '回答错误 ✗');
+}
+
+/* ── 进度直写PC SQLite ── */
+function pushProgress(q, correct){
+  pendingPush.push({
+    question_id:q.id, is_correct:correct,
+    answered_at:new Date().toISOString(),
+    in_wrong_book:!correct, in_favorites:false});
+  flushProgress();
+}
+
+async function flushProgress(){
+  if(!pendingPush.length) return;
+  const batch = pendingPush.splice(0, pendingPush.length);
+  try{
+    const r = await fetch('/api/sync/progress',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({records:batch})});
+    if(!r.ok) throw new Error(await r.text());
+  }catch(e){
+    pendingPush.unshift(...batch);   // 失败塞回，下次作答重试
+    toast('进度上传失败，将自动重试');
+  }
+}
+
+/* ── 结果与总结 ── */
+function resultHtml(q, st){
+  let detail = '';
+  if(q.type==='single_choice'||q.type==='multiple_choice')
+    detail = `你的作答：${st.pickedLetters ? st.pickedLetters.join('') : st.pickedLetter} ｜ 正确答案：${q.answer}`;
+  else if(q.type==='judgment')
+    detail = `你的作答：${st.pickedBool?'√':'×'} ｜ 正确答案：${q.answer}`;
+  else
+    detail = `你的作答：${st.input} ｜ 参考答案：${(q.accepts&&q.accepts.length)?q.accepts.map(b=>b.join('/')).join(' ｜ '):q.answer}`;
+  return `<div class="result ${st.correct?'ok':'bad'}">${st.correct?'回答正确 ✓':'回答错误 ✗'}
+      <div class="detail">${esc(detail)}</div></div>
+    <div class="explain"><b>【讲解】</b><p>${esc(q.explanation||'（本题暂无解析）')}</p></div>
+    <div style="height:14px"></div>`;
+}
+
+function move(d){ idx+=d; pickedSet.clear(); pickedJudge=null; renderQuiz(); }
+
+function showSummary(){
+  const total = questions.length;
+  const ok = questions.filter(q=>answered[q.id]&&answered[q.id].correct).length;
+  const pct = total?(ok/total*100).toFixed(1):0;
+  document.getElementById('main').innerHTML = `
+    <div class="qcard summary">
+      <div class="big">${pct}%</div>
+      <p>共 ${total} 题 · 答对 ${ok} 题 · 答错 ${total-ok} 题<br>进度已实时写入PC题库</p>
+      <button class="btn" onclick="startQuiz(${curChapter.id})">再练一遍</button>
+      <button class="btn" style="background:#fff;color:var(--ink);border:1px solid var(--line);margin-left:10px"
+        onclick="openSubject(${curSubject.id})">返回章节</button>
+    </div>`;
+}
+
+function goBack(){
+  if(view==='quiz') openSubject(curSubject.id);
+  else if(view==='chapters') renderSubjects();
+}
+
+function esc(s){ return (s??'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+load();
+</script>
+</body>
+</html>
