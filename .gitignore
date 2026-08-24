@@ -1,0 +1,24 @@
+# ---- 本地私有数据：不入公开仓库 ----
+广东专升本计算机考试题/
+升本通项目/测试题库/
+升本通项目/pc_server/tests/
+升本通项目/pc_server/scripts/
+
+# ---- Python 产物 ----
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+venv/
+
+# ---- 数据库与运行时文件 ----
+*.db
+*.sqlite3
+
+# ---- 编辑器/系统 ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
