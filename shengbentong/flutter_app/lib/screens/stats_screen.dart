@@ -26,7 +26,12 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   void initState() {
     super.initState();
-    _reload();
+    _init();
+  }
+
+  /// 先加载summary再尝试自动上传——否则pending读到0会错误跳过（T-105联调发现的竞态）
+  Future<void> _init() async {
+    await _reload();
     _tryUpload(silent: true);
   }
 
