@@ -118,6 +118,15 @@ def init_db() -> None:
     Base.metadata.create_all(engine)
 
 
+def get_db():
+    """FastAPI依赖：请求级会话"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     init_db()
     print(f"数据库已初始化: {DB_PATH}")

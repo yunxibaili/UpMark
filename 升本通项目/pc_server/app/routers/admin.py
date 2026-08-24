@@ -1,0 +1,123 @@
+# -*- coding: utf-8 -*-
+"""管理接口：导入/日志/统计/模板 + 管理页"""
+from __future__ import annotations
+
+import json
+import os
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse, PlainTextResponse
+from sqlalchemy.orm import Session
+
+from ..bulk_importer import import_bank
+from ..models.database import Chapter, ImportLog, Question, Subject, get_db
+from ..schemas.schemas import ImportRequest
+
+router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+_WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "..", "web")
+_WEB_DIR = os.path.normpath(_WEB_DIR)
+
+TEMPLATE_MD = """<!-- subject: 科目名 -->
+# 第N章 章节名 练习题
+
+## 一、单选题
+
+1. 题干文字
+   A. 选项一
+   B. 选项二
+   C. 选项三
+   D. 选项四
+**【答案】B**
+**【讲解】** 一句话讲清为什么选B。
+
+## 二、判断题
+
+1. 陈述句内容。（）
+**【答案】√**
+**【讲解】** 判断依据。√和×必须用这两个符号。
+
+## 三、填空题
+
+1. 空位用恰好6个下划线______表示。
+**【答案】** 答案内容
+**【讲解】** 解析说明。
+"""
+
+TEMPLATE_PROMPT = """你是严格的题库格式化引擎。只输出纯Markdown，禁止代码围栏包裹与寒暄。
+仅保留 单选题/多选题/判断题/填空题 四种客观题型，主观题一律丢弃。
+结构: # 第N章 名称 练习题 → ## 一、单选题 (分区序号用一、二、三…)
+每题: 编号. 题干 / A-D各占一行 / **【答案】X** / **【讲解】**解析
+判断题答案只用√×；填空空位固定______(6个下划线)，多空答案用｜分隔。
+不确定的题目直接丢弃，宁缺毋滥。完整规范见《AI收集题目提示词规范.md》。
+"""
+
+
+@router.post("/import")
+def admin_import(req: ImportRequest, db: Session = Depends(get_db)):
+    path = req.path.strip()
+    if not os.path.exists(path):
+        raise HTTPException(404, f"路径不存在: {path}")
+    summary = import_bank(path)
+
+    if summary["files_failed"] and summary["questions"] == 0:
+        status = "failed"
+    elif summary["files_failed"] or summary["questions_skipped"] \
+            or summary["sections_skipped"]:
+        status = "partial"
+    else:
+        status = "success"
+
+    log = ImportLog(
+        subject_id=None,
+        file_path=os.path.abspath(path),
+        status=status,
+        report_json=json.dumps(summary, ensure_ascii=False),
+    )
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+    return {"log_id": log.id, "ok": log.status != "failed",
+            "status": log.status, "report": summary}
+
+
+@router.get("/import/{log_id}")
+def admin_import_log(log_id: int, db: Session = Depends(get_db)):
+    log = db.get(ImportLog, log_id)
+    if log is None:
+        raise HTTPException(404, "导入记录不存在")
+    return {"log_id": log.id, "file_path": log.file_path,
+            "status": log.status,
+            "imported_at": log.imported_at.isoformat() if log.imported_at else None,
+            "report": json.loads(log.report_json) if log.report_json else None}
+
+
+@router.get("/stats")
+def admin_stats(db: Session = Depends(get_db)):
+    subjects = []
+    for s in db.query(Subject).order_by(Subject.name).all():
+        q_count = 0
+        by_type: dict = {}
+        for c in s.chapters:
+            for q in c.questions:
+                q_count += 1
+                by_type[q.type] = by_type.get(q.type, 0) + 1
+        subjects.append({"name": s.name, "chapters": len(s.chapters),
+                         "questions": q_count, "by_type": by_type})
+    return {"subjects": subjects}
+
+
+@router.get("/template", response_class=PlainTextResponse)
+def admin_template(kind: str = "md"):
+    if kind == "prompt":
+        return PlainTextResponse(TEMPLATE_PROMPT)
+    return PlainTextResponse(TEMPLATE_MD)
+
+
+@router.get("/page", include_in_schema=False)
+def admin_page():
+    index = os.path.join(_WEB_DIR, "admin.html")
+    if not os.path.isfile(index):
+        raise HTTPException(404, "管理页文件缺失 web/admin.html")
+    return FileResponse(index, media_type="text/html")

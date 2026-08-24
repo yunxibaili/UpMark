@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>升本通 · 管理后台</title>
+<style>
+  body{font-family:"Microsoft YaHei",sans-serif;background:#F5F7FA;margin:0;padding:24px;color:#333}
+  h1{color:#4A90D9;font-size:22px;margin:0 0 20px}
+  .card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:18px;margin-bottom:18px}
+  input[type=text]{width:60%;padding:8px;border:1px solid #ccc;border-radius:6px}
+  button{background:#4A90D9;color:#fff;border:none;border-radius:6px;padding:8px 18px;margin-left:8px;cursor:pointer}
+  button:hover{background:#3a7bc0}
+  table{border-collapse:collapse;width:100%}
+  th,td{border:1px solid #e3e8ee;padding:6px 10px;text-align:left;font-size:14px}
+  th{background:#eef4fb}
+  pre{background:#f4f6f8;padding:12px;border-radius:6px;max-height:340px;overflow:auto;font-size:12px}
+  .ok{color:#52C41A}.warn{color:#fa8c16}.bad{color:#FF4D4F}
+</style>
+</head>
+<body>
+<h1>升本通 · 管理后台</h1>
+
+<div class="card">
+  <b>① 题库导入</b>　服务器本地路径：
+  <input id="path" type="text" placeholder="例如 D:\data\测试题库 或 ..\..\测试题库">
+  <button onclick="doImport()">导入</button>
+  <span>模板：<a href="/api/admin/template?kind=md" target="_blank">MD格式</a> ·
+        <a href="/api/admin/template?kind=prompt" target="_blank">AI提示词</a></span>
+</div>
+
+<div class="card" id="reportCard" style="display:none">
+  <b>② 导入报告</b>
+  <button onclick="copyReport()">一键复制(回喂AI修复)</button>
+  <pre id="report"></pre>
+</div>
+
+<div class="card">
+  <b>③ 题库统计</b>
+  <table id="stats"><thead><tr><th>科目</th><th>章节</th><th>题目</th><th>按题型</th></tr></thead><tbody></tbody></table>
+</div>
+
+<script>
+let lastReport = null;
+
+async function loadStats(){
+  const r = await fetch('/api/admin/stats'); const d = await r.json();
+  const tb = document.querySelector('#stats tbody'); tb.innerHTML='';
+  for(const s of d.subjects){
+    tb.insertAdjacentHTML('beforeend',
+      `<tr><td>${s.name}</td><td>${s.chapters}</td><td>${s.questions}</td><td>${JSON.stringify(s.by_type)}</td></tr>`);
+  }
+}
+
+async function doImport(){
+  const path = document.getElementById('path').value.trim();
+  if(!path){ alert('请输入路径'); return; }
+  const r = await fetch('/api/admin/import',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({path})});
+  const d = await r.json();
+  if(r.status===404){ alert(d.detail); return; }
+  lastReport = d;
+  const badge = d.ok ? '<span class="ok">成功</span>' : '<span class="bad">失败</span>';
+  document.getElementById('reportCard').style.display='block';
+  document.getElementById('report').textContent =
+    `状态: ${badge} (status=${d.status}, log_id=${d.log_id})\n\n` +
+    JSON.stringify(d.report, null, 2);
+  loadStats();
+}
+
+function copyReport(){
+  if(lastReport) navigator.clipboard.writeText(JSON.stringify(lastReport.report,null,2));
+}
+
+loadStats();
+</script>
+</body>
+</html>
