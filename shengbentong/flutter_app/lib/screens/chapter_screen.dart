@@ -1,4 +1,4 @@
-/// 章节列表：顺序展示、题量徽标、知识点标记；点击预留T-104刷题入口
+﻿/// 章节列表：顺序展示、题量徽标、知识点标记；练习/知识点双入口
 library;
 
 import 'package:flutter/material.dart';
@@ -17,6 +17,13 @@ class ChapterScreen extends StatefulWidget {
   State<ChapterScreen> createState() => _ChapterScreenState();
 }
 
+class _Row {
+  final Chapter chapter;
+  final int questionCount;
+  final bool hasKnowledge;
+  _Row({required this.chapter, required this.questionCount, required this.hasKnowledge});
+}
+
 class _ChapterScreenState extends State<ChapterScreen> {
   late Future<List<_Row>> _future;
 
@@ -29,23 +36,27 @@ class _ChapterScreenState extends State<ChapterScreen> {
   Future<List<_Row>> _load() async {
     final db = await DbService.open();
     final chapters = await db.chaptersOf(widget.subject.id);
-    final rows = <_Row>[];
-    for (final c in chapters) {
-      final count = await db.questionCountOf(c.id);
-      final hasKn = (c.knowledgeMd ?? '').isNotEmpty;
-      rows.add(_Row(
-          chapter: c,
-          questionCount: count,
-          hasKnowledge: hasKn && c.knowledgeMd!.contains('##')));
-    }
-    return rows;
+    return [
+      for (final c in chapters)
+        _Row(
+            chapter: c,
+            questionCount: await db.questionCountOf(c.id),
+            hasKnowledge: (c.knowledgeMd ?? '').isNotEmpty),
+    ];
   }
 
-  void _onTap(_Row row) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            '「${row.chapter.title}」学习/刷题功能将在 T-104 开放（本章 ${row.questionCount} 题）'),
-        backgroundColor: brandBlue));
+  Future<void> _openQuiz(Chapter c) async {
+    final db = await DbService.open();
+    final rows = await db.rawQuestionsOf(c.id);
+    if (!mounted) return;
+    Navigator.push(context, MaterialPageRoute(
+        builder: (_) => QuizScreen(title: c.title,
+            questions: rows.map(Question.fromRow).toList())));
+  }
+
+  void _openKnowledge(Chapter c) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) =>
+        KnowledgeScreen(chapterId: c.id, title: c.title)));
   }
 
   @override
@@ -54,15 +65,14 @@ class _ChapterScreenState extends State<ChapterScreen> {
       appBar: AppBar(
           title: Text(widget.subject.name,
               style: const TextStyle(fontWeight: FontWeight.bold)),
-          backgroundColor: brandBlue,
-          foregroundColor: Colors.white),
+          backgroundColor: brandBlue, foregroundColor: Colors.white),
       body: FutureBuilder<List<_Row>>(
           future: _future,
           builder: (context, snap) {
             if (snap.connectionState != ConnectionState.done) {
               return const Center(child: CircularProgressIndicator());
             }
-            final rows = snap.data ?? const [];
+            final rows = snap.data ?? [];
             if (rows.isEmpty) {
               return const Center(child: Text('暂无内容',
                   style: TextStyle(color: Colors.grey)));
@@ -75,68 +85,35 @@ class _ChapterScreenState extends State<ChapterScreen> {
                   final r = rows[i];
                   return Card(
                     elevation: 1,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(9)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
                     child: ListTile(
                       leading: CircleAvatar(
                           backgroundColor: brandBlue.withValues(alpha: .12),
                           child: Text('${i + 1}',
-                              style: const TextStyle(
-                                  color: brandBlue,
+                              style: TextStyle(color: brandBlue,
                                   fontWeight: FontWeight.bold))),
                       title: Text(r.chapter.title),
                       subtitle: Row(children: [
-                        Icon(Icons.quiz,
-                            size: 14, color: Colors.grey.shade600),
+                        Icon(Icons.quiz, size: 14, color: Colors.grey.shade600),
                         const SizedBox(width: 4),
-                        Text('${r.questionCount} 题',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade600)),
-                        if (r.hasKnowledge) ...[
-                          const SizedBox(width: 10),
-                          Icon(Icons.menu_book,
-                              size: 14, color: Colors.grey.shade600),
-                          const SizedBox(width: 4),
-                          Text('知识点',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600)),
-                        ],
+                        Text('${r.questionCount} 题', style:
+                            TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                       ]),
                       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                         if (r.hasKnowledge)
-                          IconButton(
-                              tooltip: '知识点',
-                              onPressed: () =>
-                                  Navigator.push(context, MaterialPageRoute(
-                                      builder: (_) => KnowledgeScreen(
-                                          chapterId: r.chapter.id,
-                                          title: r.chapter.title,
-                                          knowledgeMd: r.chapter.knowledgeMd))),
-                              icon: const Icon(Icons.menu_book,
-                                  color: brandBlue)),
+                          IconButton(tooltip: '知识点',
+                              onPressed: () => _openKnowledge(r.chapter),
+                              icon: Icon(Icons.menu_book, color: brandBlue)),
                         FilledButton.tonal(
-                            onPressed: () => Navigator.push(context,
-                                MaterialPageRoute(builder: (_) =>
-                                    QuizScreen(chapterId: r.chapter.id,
-                                        title: r.chapter.title))),
+                            onPressed: () => _openQuiz(r.chapter),
                             style: FilledButton.styleFrom(
                                 visualDensity: VisualDensity.compact),
                             child: const Text('练习')),
                       ]),
-                      onTap: () => _onTap(r),
                     ),
                   );
                 });
           }),
     );
   }
-}
-
-class _Row {
-  final Chapter chapter;
-  final int questionCount;
-  final bool hasKnowledge;
-  _Row({required this.chapter, required this.questionCount, required this.hasKnowledge});
 }

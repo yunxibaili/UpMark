@@ -209,7 +209,6 @@ class DbService {
     bool inFavorites = false,
   }) async {
     final now = DateTime.now().toIso8601String();
-    // ignore: avoid_print
     await db.insert('local_progress', {
       'question_id': questionId,
       'is_correct': isCorrect ? 1 : 0,
@@ -248,7 +247,6 @@ class DbService {
       db.rawQuery(sql, args);
 
   Future<void> close() async {
-    // ignore: avoid_print
     await db.close();
   }
 }
