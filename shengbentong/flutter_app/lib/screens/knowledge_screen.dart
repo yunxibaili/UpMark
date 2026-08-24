@@ -8,19 +8,34 @@ import 'package:markdown_widget/markdown_widget.dart';
 
 import '../main.dart';
 import '../models/models.dart';
+import '../services/quiz_logic.dart';
 import 'quiz_screen.dart';
 
 class KnowledgeScreen extends StatelessWidget {
   final String title;
   final String? knowledgeMd;
   final List<Question> questions;
+  final Set<int> initialFavorites;
+  final void Function(Question q, UserAnswer ua)? onAnswered;
+  final Future<bool> Function(int questionId)? onToggleFavorite;
 
   const KnowledgeScreen(
-      {super.key, required this.title, this.knowledgeMd, this.questions = const []});
+      {super.key,
+      required this.title,
+      this.knowledgeMd,
+      this.questions = const [],
+      this.initialFavorites = const {},
+      this.onAnswered,
+      this.onToggleFavorite});
 
   void _startQuiz(BuildContext context) {
     Navigator.pushReplacement(context, MaterialPageRoute(
-        builder: (_) => QuizScreen(title: title, questions: questions)));
+        builder: (_) => QuizScreen(
+            title: title,
+            questions: questions,
+            initialFavorites: initialFavorites,
+            onAnswered: onAnswered,
+            onToggleFavorite: onToggleFavorite)));
   }
 
   @override

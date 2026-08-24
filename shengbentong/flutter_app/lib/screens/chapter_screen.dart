@@ -48,10 +48,35 @@ class _ChapterScreenState extends State<ChapterScreen> {
   Future<void> _openQuiz(Chapter c) async {
     final db = await DbService.open();
     final rows = await db.rawQuestionsOf(c.id);
+    final questions = rows.map(Question.fromRow).toList();
+    final progress = await db.progressMapOf(
+        [for (final q in questions) q.id]);
+    final favs = <int>{
+      for (final e in progress.entries)
+        if ((e.value['in_favorites'] as int? ?? 0) == 1) e.key,
+    };
+    var savedCount = 0;
     if (!mounted) return;
-    Navigator.push(context, MaterialPageRoute(
-        builder: (_) => QuizScreen(title: c.title,
-            questions: rows.map(Question.fromRow).toList())));
+    await Navigator.push(context, MaterialPageRoute(
+        builder: (_) => QuizScreen(
+            title: c.title,
+            questions: questions,
+            initialFavorites: favs,
+            onAnswered: (q, ua) {
+              savedCount++;
+              db.saveProgress(
+                  questionId: q.id, isCorrect: ua.isCorrect);
+            },
+            onToggleFavorite: (qid) async {
+              final target = !favs.contains(qid);
+              await db.setFavorite(qid, target);
+              target ? favs.add(qid) : favs.remove(qid);
+              return target;
+            })));
+    if (!mounted || savedCount == 0) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('本章已作答 $savedCount 题，进度保存在本地；联网后可在「我的统计」上传PC'),
+        duration: const Duration(seconds: 3)));
   }
 
   Future<void> _openKnowledge(Chapter c) async {
@@ -61,7 +86,13 @@ class _ChapterScreenState extends State<ChapterScreen> {
     if (!mounted) return;
     Navigator.push(context, MaterialPageRoute(builder: (_) =>
         KnowledgeScreen(title: c.title, knowledgeMd: md,
-            questions: rows.map(Question.fromRow).toList())));
+            questions: rows.map(Question.fromRow).toList(),
+            onAnswered: (q, ua) => db.saveProgress(
+                questionId: q.id, isCorrect: ua.isCorrect),
+            onToggleFavorite: (qid) async {
+              await db.setFavorite(qid, true);
+              return true;
+            })));
   }
 
   @override

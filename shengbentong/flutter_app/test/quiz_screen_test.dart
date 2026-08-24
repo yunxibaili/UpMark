@@ -133,6 +133,42 @@ void main() {
     });
   });
 
+  group('答题持久化回调（T-105）', () {
+    testWidgets('作答后 onAnswered 携带题目与判分结果', (tester) async {
+      final answered = <int, bool>{};
+      await tester.pumpWidget(MaterialApp(home:
+          QuizScreen(title: 't', questions: [mkSingle()],
+              onAnswered: (q, ua) => answered[q.id] = ua.isCorrect)));
+      await tester.pump();
+
+      await tester.tap(find.text('乙')); // 正确答案B
+      await tester.pump();
+
+      expect(answered[1], isTrue);
+    });
+
+    testWidgets('书签切换：点击触发回调且图标状态翻转', (tester) async {
+      var fav = false;
+      await tester.pumpWidget(MaterialApp(home:
+          QuizScreen(title: 't', questions: [mkSingle()],
+              initialFavorites: const {},
+              onToggleFavorite: (id) async => fav = !fav)));
+      await tester.pump();
+
+      expect(find.byIcon(Icons.bookmark_border), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.bookmark_border));
+      await tester.pump();
+      expect(fav, isTrue);
+      expect(find.byIcon(Icons.bookmark), findsOneWidget);
+      expect(find.byIcon(Icons.bookmark_border), findsNothing);
+
+      await tester.tap(find.byIcon(Icons.bookmark));
+      await tester.pump();
+      expect(fav, isFalse);
+      expect(find.byIcon(Icons.bookmark_border), findsOneWidget);
+    });
+  });
+
   group('导航', () {
     testWidgets('下一题/上一题切换且题号递增', (tester) async {
       final qs = [mkSingle(), mkSingle(answer: 'C'),

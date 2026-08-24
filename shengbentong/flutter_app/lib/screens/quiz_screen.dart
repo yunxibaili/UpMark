@@ -13,7 +13,22 @@ class QuizScreen extends StatefulWidget {
   final String title;
   final List<Question> questions;
 
-  const QuizScreen({super.key, required this.title, required this.questions});
+  /// 初始收藏集合（由调用方从DB查出注入）
+  final Set<int> initialFavorites;
+
+  /// 答题回调：调用方负责写 local_progress+sync_queue（本页零IO）
+  final void Function(Question q, UserAnswer ua)? onAnswered;
+
+  /// 收藏切换回调：返回切换后的新状态
+  final Future<bool> Function(int questionId)? onToggleFavorite;
+
+  const QuizScreen(
+      {super.key,
+      required this.title,
+      required this.questions,
+      this.initialFavorites = const {},
+      this.onAnswered,
+      this.onToggleFavorite});
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -21,6 +36,7 @@ class QuizScreen extends StatefulWidget {
 
 class _QuizScreenState extends State<QuizScreen> {
   late final List<Question> _questions;
+  late final Set<int> _favorites;
   final Map<int, UserAnswer> _answers = {};
   final Set<String> _picked = {};
   final TextEditingController _blankCtrl = TextEditingController();
@@ -30,6 +46,7 @@ class _QuizScreenState extends State<QuizScreen> {
   void initState() {
     super.initState();
     _questions = widget.questions;
+    _favorites = Set.of(widget.initialFavorites);
   }
 
   @override
@@ -41,11 +58,24 @@ class _QuizScreenState extends State<QuizScreen> {
   Question get _q => _questions[_index];
   UserAnswer? get _answerOfQ => _answers[_q.id];
   bool get _isAnswered => _answers.containsKey(_q.id);
+  bool get _isFav => _favorites.contains(_q.id);
 
   void _answer(Object? pick) {
     if (_isAnswered) return;
     final ua = QuizLogic.evaluate(_q, pick);
     setState(() => _answers[_q.id] = ua);
+    widget.onAnswered?.call(_q, ua);
+  }
+
+  Future<void> _toggleFavorite() async {
+    final target = !_isFav;
+    setState(() =>
+        target ? _favorites.add(_q.id) : _favorites.remove(_q.id));
+    final confirmed = await widget.onToggleFavorite?.call(_q.id) ?? target;
+    if (mounted && confirmed != _isFav) {
+      setState(() =>
+          confirmed ? _favorites.add(_q.id) : _favorites.remove(_q.id));
+    }
   }
 
   void _next() => setState(() { _index++; _picked.clear(); _blankCtrl.clear(); });
@@ -57,7 +87,13 @@ class _QuizScreenState extends State<QuizScreen> {
     return Scaffold(
       appBar: AppBar(title: Text('${widget.title}  ${_index + 1}/${_questions.length}',
           style: const TextStyle(fontWeight: FontWeight.bold)),
-          backgroundColor: brandBlue, foregroundColor: Colors.white),
+          backgroundColor: brandBlue, foregroundColor: Colors.white,
+          actions: [
+            IconButton(
+                tooltip: _isFav ? '取消收藏' : '收藏本题',
+                onPressed: _toggleFavorite,
+                icon: Icon(_isFav ? Icons.bookmark : Icons.bookmark_border)),
+          ]),
       body: Column(children: [
         LinearProgressIndicator(value: (_index + 1) / _questions.length,
             backgroundColor: Colors.grey.shade200, color: brandBlue),

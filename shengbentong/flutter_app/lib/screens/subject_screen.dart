@@ -9,6 +9,9 @@ import '../services/api_service.dart';
 import '../services/db_service.dart';
 import '../services/sync_service.dart';
 import 'chapter_screen.dart';
+import 'favorites_screen.dart';
+import 'stats_screen.dart';
+import 'wrong_book_screen.dart';
 
 class SubjectScreen extends StatefulWidget {
   const SubjectScreen({super.key});
@@ -20,6 +23,7 @@ class SubjectScreen extends StatefulWidget {
 class _SubjectScreenState extends State<SubjectScreen> {
   DbService? _db;
   List<SubjectStat> _stats = [];
+  Map<String, Object?> _summary = const {};
   bool _loading = true;
   bool _syncing = false;
   String? _offlineHint;
@@ -35,10 +39,12 @@ class _SubjectScreenState extends State<SubjectScreen> {
   Future<void> _load() async {
     final db = await DbService.open();
     final stats = await db.subjectsWithStats();
+    final summary = await db.statsSummary();
     if (!mounted) return;
     setState(() {
       _db = db;
       _stats = stats;
+      _summary = summary;
       _loading = false;
     });
   }
@@ -144,9 +150,77 @@ class _SubjectScreenState extends State<SubjectScreen> {
                     : const Icon(Icons.sync)),
           ]),
         ),
+        _entryCards(),
         Expanded(child: _buildBody()),
       ]),
     );
+  }
+
+  Widget _entryCards() {
+    final pending = (_summary['pending_upload'] as int?) ?? 0;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+      child: Row(children: [
+        _entryCard(Icons.error_outline, '错题本', '${_summary['wrong_book'] ?? 0}',
+            badRed, () async {
+          await Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const WrongBookScreen()));
+          _load();
+        }),
+        const SizedBox(width: 10),
+        _entryCard(Icons.bookmark_border, '收藏夹', '${_summary['favorites'] ?? 0}',
+            brandBlue, () async {
+          await Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const FavoritesScreen()));
+          _load();
+        }),
+        const SizedBox(width: 10),
+        _entryCard(Icons.insights, '我的统计', '$pending', Colors.orange, () async {
+          await Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const StatsScreen()));
+          _load();
+        }),
+      ]),
+    );
+  }
+
+  Widget _entryCard(IconData icon, String label, String badge, Color color,
+      VoidCallback onTap) {
+    return Expanded(
+        child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: onTap,
+            child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                    color: color.withValues(alpha: .07),
+                    borderRadius: BorderRadius.circular(10),
+                    border:
+                        Border.all(color: color.withValues(alpha: .18))),
+                child: Column(children: [
+                  Stack(clipBehavior: Clip.none, children: [
+                    Icon(icon, size: 26, color: color),
+                    if (badge != '0')
+                      Positioned(top: -5, right: -9, child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                              color: color,
+                              borderRadius: BorderRadius.circular(9)),
+                          constraints:
+                              const BoxConstraints(minWidth: 17),
+                          child: Text(badge,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold)))),
+                  ]),
+                  const SizedBox(height: 6),
+                  Text(label,
+                      style: const TextStyle(
+                          fontSize: 12.5, fontWeight: FontWeight.w500)),
+                ]))));
   }
 
   Widget _buildBody() {

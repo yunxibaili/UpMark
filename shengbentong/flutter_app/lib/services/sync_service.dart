@@ -2,12 +2,15 @@
 /// 阶段回调供UI展示"正在下载… / 正在写入…"，失败抛 ApiException。
 library;
 
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import 'api_service.dart';
 import 'db_service.dart';
 
+/// 全量同步结果
 class SyncResult {
   final int subjects;
   final int chapters;
@@ -20,6 +23,16 @@ class SyncResult {
     required this.questions,
     required this.elapsed,
   });
+}
+
+/// 进度上报结果
+class UploadResult {
+  final int pushed;      // 服务端新收条数
+  final int duplicates;  // 服务端去重条数
+  final int remaining;   // 本地队列剩余
+
+  const UploadResult(
+      {required this.pushed, required this.duplicates, required this.remaining});
 }
 
 class SyncService {
@@ -79,7 +92,30 @@ class SyncService {
     }
   }
 
-  Future<String?> lastSyncTime() async {
+  /// T-105：把本地 sync_queue 批量上报到PC。
+  /// 全部成功后清空队列；服务端按(question_id, answered_at)幂等去重，重复推无副作用。
+  /// 离线/不可达时抛 ApiException，由调用方决定提示方式。
+  Future<UploadResult> uploadPending() async {
+    final rows = await db.pendingQueueRows();
+    if (rows.isEmpty) {
+      return const UploadResult(pushed: 0, duplicates: 0, remaining: 0);
+    }
+    final records = <Map<String, Object?>>[
+      for (final r in rows)
+        Map<String, Object?>.from(
+            jsonDecode(r['payload'] as String) as Map),
+    ];
+    final res = await api.pushProgress(records);
+    await db.clearQueueRows([for (final r in rows) r['id'] as int]);
+    final remaining = (await db.pendingQueueRows()).length;
+    return UploadResult(
+        pushed: res['accepted'] as int? ?? 0,
+        duplicates: res['duplicate_ignored'] as int? ?? 0,
+        remaining: remaining);
+  }
+
+  /// 上次全量同步时间（仅读本地偏好，无需网络）
+  static Future<String?> lastSyncTime() async {
     final sp = await SharedPreferences.getInstance();
     return sp.getString(ApiConfig.lastSyncKey);
   }
