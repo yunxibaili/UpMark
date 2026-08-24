@@ -107,6 +107,11 @@ class ApiService {
       throw ApiException(mapDioError(e));
     }
   }
+
+  /// v2.1: 下载题目图像到本地缓存（同步阶段调用，保证离线可渲染）
+  Future<void> downloadTo(String urlPath, String savePath) async {
+    await _dio.download(urlPath, savePath);
+  }
 }
 
 Future<ApiService> createApiFromPrefs() async {

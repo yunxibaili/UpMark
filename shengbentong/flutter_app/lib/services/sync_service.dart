@@ -3,8 +3,11 @@
 library;
 
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
 
 import '../models/models.dart';
 import 'api_service.dart';
@@ -50,12 +53,15 @@ class SyncService {
     onStage('正在解析同步载荷…');
     final payload = SyncPayload.fromJson(raw);
 
-    if (payload.schemaVersion > 1) {
+    if (payload.schemaVersion > 2) {
       throw ApiException('协议版本不兼容(${payload.schemaVersion})，请升级App');
     }
 
     onStage('正在写入本地数据库（${payload.subjects.length}个科目）…');
     await db.replaceAll(payload);
+
+    // v2.1: 下载题目图像到本地缓存（离线可渲染），成功改写为本地路径
+    await _downloadImages(payload, onStage);
 
     final sp = await SharedPreferences.getInstance();
     await sp.setString(ApiConfig.dataVersionKey, payload.dataVersion);
@@ -76,6 +82,46 @@ class SyncService {
         chapters: chapterTotal,
         questions: questionTotal,
         elapsed: sw.elapsed);
+  }
+
+  /// v2.1: 下载所有题目图像到 `databases/upmark_images/`。
+  /// 成功→DB改写为本地绝对路径；失败→置null（不阻断同步）。返回成功数。
+  Future<int> _downloadImages(
+      SyncPayload payload, void Function(String stage) onStage) async {
+    final remoteToQ = <String, Set<int>>{};
+    for (final s in payload.subjects) {
+      for (final c in s.chapters) {
+        for (final q in c.questions) {
+          final img = q.image;
+          if (img != null && img.isNotEmpty) {
+            remoteToQ.putIfAbsent(img, () => <int>{}).add(q.id);
+          }
+        }
+      }
+    }
+    if (remoteToQ.isEmpty) return 0;
+
+    final dir = p.join(await getDatabasesPath(), 'upmark_images');
+    await Directory(dir).create(recursive: true);
+
+    final okMap = <String, String>{};
+    final failed = <String>{};
+    var i = 0;
+    for (final remote in remoteToQ.keys) {
+      i++;
+      onStage('正在下载题目图像（$i/${remoteToQ.length}）…');
+      final name = remote.split('/').last;
+      final save = p.join(dir, name);
+      try {
+        await api.downloadTo(remote, save);
+        okMap[remote] = save;
+      } catch (_) {
+        failed.add(remote);          // 单图失败不阻断同步
+      }
+    }
+    await db.rewriteQuestionImages(okMap);
+    if (failed.isNotEmpty) await db.nullifyQuestionImages(failed);
+    return okMap.length;
   }
 
   /// 对比服务器与本地 data_version；从未同步或版本不同 → true；离线返回 false（静默）

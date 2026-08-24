@@ -3,6 +3,8 @@
 /// 这使本页面可在flutter test中用纯内存数据直接测试，无需任何mock。
 library;
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../main.dart';
@@ -132,6 +134,17 @@ class _QuizScreenState extends State<QuizScreen> {
                       style: TextStyle(fontSize: 14.5, height: 1.6,
                           color: Colors.grey.shade800)))),
             const SizedBox(height: 12),
+          ],
+          if ((_q.image ?? '').isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Container(width: double.infinity, color: const Color(0xFFFAFBFC),
+                    padding: const EdgeInsets.all(8),
+                    child: Image.file(File(_q.image!),
+                        fit: BoxFit.contain, height: 230,
+                        errorBuilder: (_, _, _) =>
+                            const SizedBox.shrink()))),
           ],
           const SizedBox(height: 6),
           Text(_q.stem.isEmpty

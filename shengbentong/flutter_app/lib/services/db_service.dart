@@ -67,7 +67,7 @@ class DbService {
     }
     _cache.remove(name);
     final dir = await getDefaultDatabasesDirectory();
-    final db = await openDatabase(p.join(dir, name), version: 1,
+    final db = await openDatabase(p.join(dir, name), version: 2,
         onCreate: (d, v) async {
       await d.execute('''
         CREATE TABLE subjects(
@@ -89,6 +89,7 @@ class DbService {
           number INTEGER NOT NULL DEFAULT 0,
           global_seq INTEGER NOT NULL DEFAULT 0,
           material TEXT,
+          image TEXT,
           stem TEXT NOT NULL,
           options TEXT,
           answer TEXT NOT NULL,
@@ -100,6 +101,11 @@ class DbService {
           'CREATE INDEX idx_questions_chapter ON questions(chapter_id)');
       for (final sql in progressTableSqls) {
         await d.execute(sql);
+      }
+    }, onUpgrade: (d, oldV, newV) async {
+      if (oldV < 2) {
+        // v2.1: questions 补 image 列
+        await d.execute('ALTER TABLE questions ADD COLUMN image TEXT');
       }
     });
     final svc = DbService._(db);
@@ -136,6 +142,7 @@ class DbService {
             'number': q.number,
             'global_seq': q.globalSeq == 0 ? i + 1 : q.globalSeq,
             'material': q.material,
+            'image': q.image,
             'stem': q.stem,
             'options':
                 q.options.isEmpty ? null : jsonEncode(q.options),
@@ -382,6 +389,25 @@ class DbService {
     if (ids.isEmpty) return;
     final ph = List.filled(ids.length, '?').join(',');
     await db.delete('sync_queue', where: 'id IN ($ph)', whereArgs: ids);
+  }
+
+  /// v2.1: 图像下载成功后，把 questions.image 从远端相对路径改写为本地绝对路径
+  Future<void> rewriteQuestionImages(Map<String, String> remoteToLocal) async {
+    if (remoteToLocal.isEmpty) return;
+    final batch = db.batch();
+    for (final e in remoteToLocal.entries) {
+      batch.update('questions', {'image': e.value},
+          where: 'image = ?', whereArgs: [e.key]);
+    }
+    await batch.commit(noResult: true);
+  }
+
+  /// v2.1: 下载失败的图像置空（题目仍可用，仅无图）
+  Future<void> nullifyQuestionImages(Set<String> remotes) async {
+    for (final r in remotes) {
+      await db.update('questions', {'image': null},
+          where: 'image = ?', whereArgs: [r]);
+    }
   }
 
   /// 某章已作答进度：qid -> 行（刷题页恢复状态用）

@@ -196,6 +196,9 @@ function qCardHtml(q, st){
   let html = `<span class="type-chip">${typeNames[q.type]||'题'}</span>
     <span style="font-size:12px;color:var(--sub);margin-left:8px">第 ${q.number||idx+1} 题</span>`;
   if(q.material) html += `<div class="material">${esc(q.material)}</div>`;
+  if(q.image) html += `<div style="margin-top:14px;text-align:center;background:#fafbfc;
+    border:1px solid var(--line);border-radius:10px;padding:10px">
+    <img src="${esc(q.image)}" style="max-width:100%;max-height:300px;border-radius:6px" alt="题图"></div>`;
   html += `<div class="stem">${esc(q.stem) || '（完形填空 · 根据材料作答）'}</div>`;
   if(q.type==='judgment'){
     html += `<div class="judge-row">

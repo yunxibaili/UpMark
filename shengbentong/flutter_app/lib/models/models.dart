@@ -56,6 +56,7 @@ class Question {
   final int number;
   final int globalSeq;
   final String? material;
+  final String? image;      // v2.1: 本地缓存图路径（同步时已下载）；无则null
   final String stem;
   final List<String> options;
   final String answer;
@@ -70,6 +71,7 @@ class Question {
     required this.number,
     required this.globalSeq,
     this.material,
+    this.image,
     required this.stem,
     required this.options,
     required this.answer,
@@ -85,6 +87,7 @@ class Question {
         number: row['number'] as int,
         globalSeq: row['global_seq'] as int,
         material: row['material'] as String?,
+        image: row['image'] as String?,
         stem: (row['stem'] as String?) ?? '',
         options: _decodeList(row['options']),
         answer: (row['answer'] as String?) ?? '',
@@ -100,6 +103,7 @@ class Question {
         'number': number,
         'global_seq': globalSeq,
         'material': material,
+        'image': image,
         'stem': stem,
         'options': _encodeList(options),
         'answer': answer,
@@ -155,6 +159,7 @@ class SyncQuestion {
   final int number;
   final int globalSeq;
   final String? material;
+  final String? image;    // v2.1: 服务端相对URL（/static/images/…）
   final String stem;
   final List<String> options;
   final String answer;
@@ -167,6 +172,7 @@ class SyncQuestion {
     required this.number,
     required this.globalSeq,
     this.material,
+    this.image,
     required this.stem,
     required this.options,
     required this.answer,
@@ -180,6 +186,7 @@ class SyncQuestion {
         number: j['number'] as int? ?? 0,
         globalSeq: j['global_seq'] as int? ?? 0,
         material: j['material'] as String?,
+        image: j['image'] as String?,
         stem: j['stem'] as String? ?? '',
         options: (j['options'] as List?)?.map((e) => e.toString()).toList() ??
             const [],

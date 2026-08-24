@@ -33,6 +33,8 @@ RE_ANS_PLAIN = re.compile(r"^【答案】\s*(.*)$")                        # 非
 RE_EXPL_B = re.compile(r"^\*\*【讲解】\*\*\s*(.*)$")
 RE_EXPL_PLAIN = re.compile(r"^【讲解】\s*(.*)$")
 RE_MATERIAL = re.compile(r"^\*{0,2}\s*【材料】\s*\*{0,2}\s*$")
+RE_IMAGE = re.compile(r"^\*{0,2}\s*【图】\s*(\S.*?)\s*\*{0,2}\s*$")   # v2.1:【图】相对路径
+RE_IMAGE_EMPTY = re.compile(r"^\*{0,2}\s*【图】\s*\*{0,2}\s*$")
 RE_FENCE_OPEN = re.compile(r"^\s{0,3}(```+|~~~+)\s*(\w*)\s*$")
 RE_FENCE_CLOSE = re.compile(r"^\s{0,3}(```+|~~~+)\s*$")
 RE_BLANKS = re.compile(r"_{3,}")
@@ -95,11 +97,13 @@ class _Q:
     """正在组装的一道题"""
 
     def __init__(self, raw_number: int, style: str, difficulty: Optional[int],
-                 material: Optional[str], line: int):
+                 material: Optional[str], line: int,
+                 image: Optional[str] = None):
         self.raw_number = raw_number
         self.style = style
         self.difficulty = difficulty
         self.material = material
+        self.image = image
         self.line = line
         self.stem_parts: List[str] = [""]
         self.option_pairs: List[Tuple[str, str]] = []
@@ -165,6 +169,7 @@ class StrictMDParser:
         expected_opt = "B"                # 多行拆分时的下一个选项字母
         material_buf: Optional[List[str]] = None
         material_current: Optional[str] = None
+        image_current: Optional[str] = None   # v2.1:【图】当前图像（语义同材料，随分区重置）
         prev_blank = True
 
         def warn(line: int, code: str, msg: str) -> None:
@@ -283,6 +288,7 @@ class StrictMDParser:
                 flush_material()
                 close_skip_section(lineno - 1)
                 material_current = None           # 新分区重置材料
+                image_current = None              # 新分区重置图像（v2.1）
                 header_txt = m_h2.group(1).strip()
                 m_seq = RE_SEC_SEQ.match(header_txt)
                 seq_val: Optional[int] = None
@@ -319,6 +325,19 @@ class StrictMDParser:
                 prev_blank = not stripped
                 continue
 
+            # ---------- 图像标记（v2.1，语义同材料：归属其后题目，随分区重置） ----------
+            m_img = RE_IMAGE.match(stripped)
+            if m_img:
+                finalize_question()
+                flush_material()
+                image_current = m_img.group(1).strip()
+                prev_blank = True
+                continue
+            if RE_IMAGE_EMPTY.match(stripped):
+                warn(lineno, "W322", "【图】行缺少图像相对路径，已忽略")
+                prev_blank = True
+                continue
+
             # ---------- 材料块标记 ----------
             if RE_MATERIAL.match(stripped):
                 finalize_question()
@@ -326,9 +345,11 @@ class StrictMDParser:
                 material_buf = []
                 prev_blank = True
                 continue
-            if material_buf is not None:      # 收集材料，遇 分区/新材料/题目起始 即终止
+            if material_buf is not None:      # 收集材料，遇 分区/新材料/新图像/题目起始 即终止
                 terminate = bool(RE_H2_SECTION.match(line)) \
-                    or bool(RE_MATERIAL.match(stripped))
+                    or bool(RE_MATERIAL.match(stripped)) \
+                    or bool(RE_IMAGE.match(stripped)) \
+                    or bool(RE_IMAGE_EMPTY.match(stripped))
                 if not terminate and cur_q is None:
                     probe = self._match_question_start(
                         line, stripped, None, cur_qtype, cur_is_context,
@@ -373,7 +394,8 @@ class StrictMDParser:
                     warn(lineno, "W310",
                          f"题号 {n} 与期望 {expected_next} 不符（跳号/重复/乱序），已自动重排")
                 expected_next = n + 1
-                cur_q = _Q(n, style, diff, material_current, lineno)
+                cur_q = _Q(n, style, diff, material_current, lineno,
+                           image_current)
                 if stem0:
                     cur_q.stem_parts = [stem0]
                     self._try_split_inline(cur_q)   # 题干与选项同行（真题卷式）
@@ -736,6 +758,7 @@ class StrictMDParser:
             accepts=accepts,
             explanation="\n".join(q.expl_parts).strip(),
             source_line=q.line,
+            image=q.image,
         ))
 
     # ------------------------------------------------------------ 知识点文件

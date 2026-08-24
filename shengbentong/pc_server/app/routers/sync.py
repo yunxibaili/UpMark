@@ -15,7 +15,7 @@ from ..models.database import (
 from ..schemas.schemas import ProgressBatch, ProgressItem
 
 router = APIRouter(prefix="/api", tags=["sync"])
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2   # v2: Question新增image字段（/static/images/… 相对URL）
 DATA_VERSION = "20240824-1"   # 题库数据版本：每次导入后由bulk_importer侧更新
 
 
@@ -26,6 +26,7 @@ def _question_dict(q: Question) -> dict:
         "number": q.number,
         "global_seq": q.global_seq,
         "material": q.material,
+        "image": q.image,
         "stem": q.stem,
         "options": json.loads(q.options) if q.options else [],
         "answer": q.answer,

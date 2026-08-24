@@ -45,6 +45,7 @@ class Question:
     accepts: List[List[str]]            # blank专用：每空的可接受答案列表
     explanation: str                    # 允许空串(W312)
     source_line: int
+    image: Optional[str] = None         # v2.1:【图】相对路径，无则None
 
     def to_dict(self) -> dict:
         d = asdict(self)
