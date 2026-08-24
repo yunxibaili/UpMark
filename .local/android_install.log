@@ -1,0 +1,93 @@
+13:03:43 === 安装开�?===
+13:03:43 下载 Temurin JDK17 ...
+13:03:53 解压 JDK17 ...
+13:04:00 JAVA_HOME = D:\jdk17\jdk-17.0.20+8
+13:04:00 下载 Android cmdline-tools ...
+13:04:04 安装 platform-tools / android-34 / build-tools（约600MB�?..
+13:04:05   Error: Unknown argument "--yes"
+13:04:05   Error: 
+13:04:05   Usage:
+13:04:05     sdkmanager [--uninstall] [<common args>] [--package_file=<file>] [<packages>...]
+13:04:05     sdkmanager --update [<common args>]
+13:04:05     sdkmanager --list [<common args>]
+13:04:05     sdkmanager --list_installed [<common args>]
+13:04:05     sdkmanager --licenses [<common args>]
+13:04:05     sdkmanager --version
+13:04:05   System.Management.Automation.RemoteException
+13:04:05   With --install (optional), installs or updates packages.
+13:04:05       By default, the listed packages are installed or (if already installed)
+13:04:05       updated to the latest version.
+13:04:05   With --uninstall, uninstall the listed packages.
+13:04:05   System.Management.Automation.RemoteException
+13:04:05       <package> is a sdk-style path (e.g. "build-tools;23.0.0" or
+13:04:05                "platforms;android-23").
+13:04:05       <package-file> is a text file where each line is a sdk-style path
+13:04:05                      of a package to install or uninstall.
+13:04:05       Multiple --package_file arguments may be specified in combination
+13:04:05       with explicit paths.
+13:04:05   System.Management.Automation.RemoteException
+13:04:05   With --update, all installed packages are updated to the latest version.
+13:04:05   System.Management.Automation.RemoteException
+13:04:05   With --list, all installed and available packages are printed out.
+13:04:05   System.Management.Automation.RemoteException
+13:04:05   With --list_installed, all installed packages are printed out.
+13:04:05   System.Management.Automation.RemoteException
+13:04:05   With --licenses, show and offer the option to accept licenses for all
+13:04:05        available packages that have not already been accepted.
+13:04:05   System.Management.Automation.RemoteException
+13:04:05   With --version, prints the current version of sdkmanager.
+13:04:05   System.Management.Automation.RemoteException
+13:04:05   Common Arguments:
+13:04:05       --sdk_root=<sdkRootPath>: Use the specified SDK root instead of the SDK
+13:04:05                                 containing this tool
+13:04:05   System.Management.Automation.RemoteException
+13:04:05       --channel=<channelId>: Include packages in channels up to <channelId>.
+13:04:05                              Common channels are:
+13:04:05                              0 (Stable), 1 (Beta), 2 (Dev), and 3 (Canary).
+13:04:05   System.Management.Automation.RemoteException
+13:04:05       --include_obsolete: With --list, show obsolete packages in the
+13:04:05                           package listing. With --update, update obsolete
+13:04:05                           packages as well as non-obsolete.
+13:04:05   System.Management.Automation.RemoteException
+13:04:05       --newer: With --list, show only new and/or updatable packages.
+13:04:05   System.Management.Automation.RemoteException
+13:04:05       --no_https: Force all connections to use http rather than https.
+13:04:05   System.Management.Automation.RemoteException
+13:04:05       --proxy=<http | socks>: Connect via a proxy of the given type.
+13:04:05   System.Management.Automation.RemoteException
+13:04:05       --proxy_host=<IP or DNS address>: IP or DNS address of the proxy to use.
+13:04:05   System.Management.Automation.RemoteException
+13:04:05       --proxy_port=<port #>: Proxy port to connect to.
+13:04:05   System.Management.Automation.RemoteException
+13:04:05       --verbose: Enable verbose output.
+13:04:05   System.Management.Automation.RemoteException
+13:04:05   * If the env var REPO_OS_OVERRIDE is set to "windows",
+13:04:05     "macosx", or "linux", packages will be downloaded for that OS.
+13:04:05 接受全部 licenses ...
+13:04:06 flutter config --android-sdk ...
+13:04:07   Setting "android-sdk" value to "D:\android-sdk".
+13:04:07   
+13:04:07   You may need to restart any open editors for them to read new settings.
+13:04:07 flutter doctor ...
+13:04:08   Doctor summary (to see all details, run flutter doctor -v):
+13:04:08   [√] Flutter (Channel stable, 3.47.1, on Microsoft Windows [版本 10.0.26200.9168], locale zh-CN)
+13:04:08   [√] Windows Version (Windows 11 or higher, 25H2, 2009)
+13:04:08   [!] Android toolchain - develop for Android devices
+13:04:08       X Unable to locate Android SDK.
+13:04:08         Install Android Studio from: https://developer.android.com/studio/index.html
+13:04:08         On first launch it will assist you in installing the Android SDK components.
+13:04:08         (or visit https://flutter.dev/to/windows-android-setup for detailed instructions).
+13:04:08         If the Android SDK has been installed to a custom location, please use
+13:04:08         `flutter config --android-sdk` to update to that location.
+13:04:08   
+13:04:08       X Android SDK file not found: adb.
+13:04:08   [√] Chrome - develop for the web
+13:04:08   [X] Visual Studio - develop Windows apps
+13:04:08       X Visual Studio not installed; this is necessary to develop Windows apps.
+13:04:08         Download at https://visualstudio.microsoft.com/downloads/.
+13:04:08         Please install the "Desktop development with C++" workload, including all of its default components
+13:04:08   [√] Connected device (3 available)
+13:04:30   [!] Network resources
+13:04:30       X A network error occurred while checking "https://maven.google.com/": 信号灯超时时间已�?
+13:04:30   ! Doctor found issues in 3 categories.
+13:04:30 === 全部完成 ===

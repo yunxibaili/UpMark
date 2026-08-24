@@ -59,11 +59,13 @@ String mapDioError(Object e) {
 class ApiService {
   final Dio _dio;
 
-  ApiService({required String baseUrl})
+  ApiService({required String baseUrl,
+      Duration? connectTimeout,
+      Duration? receiveTimeout})
       : _dio = Dio(BaseOptions(
           baseUrl: baseUrl,
-          connectTimeout: const Duration(seconds: 5),
-          receiveTimeout: const Duration(seconds: 120),
+          connectTimeout: connectTimeout ?? const Duration(seconds: 5),
+          receiveTimeout: receiveTimeout ?? const Duration(seconds: 120),
           headers: {'Accept-Encoding': 'gzip'},
         ));
 

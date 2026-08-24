@@ -1,4 +1,4 @@
-/// DbService — sqflite 本地库 CRUD。所有页面只读本地 DB（T-104 约定）。
+﻿/// DbService — sqflite 本地库 CRUD。所有页面只读本地 DB（T-104 约定）。
 library;
 
 import 'dart:convert';
@@ -10,6 +10,27 @@ import '../models/models.dart';
 
 const dbName = 'upmark.db';
 
+/// 进度/队列表建表语句（onCreate 与老库升级共用）
+List<String> get progressTableSqls => [
+      '''
+  CREATE TABLE IF NOT EXISTS local_progress(
+    question_id INTEGER PRIMARY KEY,
+    is_correct INTEGER NOT NULL DEFAULT 0,
+    answered_at TEXT,
+    in_wrong_book INTEGER NOT NULL DEFAULT 0,
+    in_favorites INTEGER NOT NULL DEFAULT 0,
+    sync_status TEXT NOT NULL DEFAULT 'pending')
+''',
+      '''
+  CREATE TABLE IF NOT EXISTS sync_queue(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question_id INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    created_at TEXT)
+''',
+    ];
+
 class SubjectStat {
   final Subject subject;
   final int chapters;
@@ -20,11 +41,33 @@ class SubjectStat {
 class DbService {
   final Database db;
 
+  /// 测试隔离钩子：设置后 open() 使用该文件名
+  static String? fileNameOverride;
+
+  /// 最近一次打开的实例（测试断言用）
+  static DbService? lastOpened;
+
+  /// 测试专用：清空路径级缓存（配合 deleteDatabase 实现完全隔离）
+  static void resetInstanceCache() {
+    _cache.clear();
+    lastOpened = null;
+  }
+
+  /// 路径级实例缓存：同一路径永远复用同一连接，
+  /// 避免sqflite工厂"一处close全局关闭"的坑
+  static final Map<String, DbService> _cache = {};
+
   DbService._(this.db);
 
-  static Future<DbService> open() async {
+  static Future<DbService> open([String? fileName]) async {
+    final name = fileName ?? fileNameOverride ?? dbName;
+    final cached = _cache[name];
+    if (cached != null && cached.db.isOpen) {
+      return cached;
+    }
+    _cache.remove(name);
     final dir = await getDefaultDatabasesDirectory();
-    final db = await openDatabase(p.join(dir, dbName), version: 1,
+    final db = await openDatabase(p.join(dir, name), version: 1,
         onCreate: (d, v) async {
       await d.execute('''
         CREATE TABLE subjects(
@@ -55,9 +98,17 @@ class DbService {
       ''');
       await d.execute(
           'CREATE INDEX idx_questions_chapter ON questions(chapter_id)');
+      for (final sql in progressTableSqls) {
+        await d.execute(sql);
+      }
     });
-    return DbService._(db);
+    final svc = DbService._(db);
+    _cache[name] = svc;
+    svc._mark();
+    return svc;
   }
+
+  void _mark() => DbService.lastOpened = this;
 
   /// 全量替换 subjects/chapters/questions 三表；进度表(local_progress)不动。
   Future<void> replaceAll(SyncPayload payload) async {
@@ -150,7 +201,56 @@ class DbService {
     return rows.isEmpty ? null : rows.first['knowledge_md'] as String?;
   }
 
-  Future<void> close() => db.close();
+  /// T-104：答题后写入进度与上传队列（幂等：同题保留最新）
+  Future<void> saveProgress({
+    required int questionId,
+    required bool isCorrect,
+    bool inWrongBook = false,
+    bool inFavorites = false,
+  }) async {
+    final now = DateTime.now().toIso8601String();
+    // ignore: avoid_print
+    await db.insert('local_progress', {
+      'question_id': questionId,
+      'is_correct': isCorrect ? 1 : 0,
+      'answered_at': now,
+      'in_wrong_book': (inWrongBook || !isCorrect) ? 1 : 0,
+      'in_favorites': inFavorites ? 1 : 0,
+      'sync_status': 'pending',
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    await db.insert('sync_queue', {
+      'question_id': questionId,
+      'action': 'answer',
+      'payload': jsonEncode({
+        'question_id': questionId,
+        'is_correct': isCorrect,
+        'answered_at': now,
+        'in_wrong_book': inWrongBook || !isCorrect,
+        'in_favorites': inFavorites,
+      }),
+      'created_at': now,
+    });
+  }
+
+  /// 某章已作答进度：qid -> 行（刷题页恢复状态用）
+  Future<Map<int, Map<String, Object?>>> progressMapOf(
+      List<int> questionIds) async {
+    if (questionIds.isEmpty) return {};
+    final ph = List.filled(questionIds.length, '?').join(',');
+    final rows = await db.query('local_progress',
+        where: 'question_id IN ($ph)', whereArgs: questionIds);
+    return {for (final r in rows) r['question_id'] as int: r};
+  }
+
+  /// 测试/调试用：原始SQL透传
+  Future<List<Map<String, Object?>>> rawQuery(String sql,
+          [List<Object?>? args]) =>
+      db.rawQuery(sql, args);
+
+  Future<void> close() async {
+    // ignore: avoid_print
+    await db.close();
+  }
 }
 
 /// sqflite 默认工厂在纯 Dart 测试中不可用，测试侧用 sqflite_common_ffi 注入。

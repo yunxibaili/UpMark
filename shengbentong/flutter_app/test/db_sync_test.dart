@@ -1,9 +1,10 @@
-/// 本地DB + 同步载荷解析 单元测试（sqflite_common_ffi，无需真机/模拟器）
+﻿/// 本地DB + 同步载荷解析 单元测试（sqflite_common_ffi，无需真机/模拟器）
 library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'helpers/test_db.dart';
 
 import 'package:shengbentong/models/models.dart';
 import 'package:shengbentong/services/db_service.dart';
@@ -142,7 +143,7 @@ void main() {
     late DbService db;
 
     setUp(() async {
-      db = await DbService.open();
+      db = await openTestDb('t_dbsync.db');
       await db.replaceAll(SyncPayload.fromJson(sampleSync));
     });
 
@@ -205,7 +206,7 @@ void main() {
   group('SyncService 版本检测', () {
     test('从未同步→hasUpdate为true；离线→false不抛异常', () async {
       final api = ApiService(baseUrl: 'http://127.0.0.1:9'); // 必然连不上
-      final db = await DbService.open();
+      final db = await openTestDb('t_dbsync.db');
       final svc = SyncService(api: api, db: db);
       expect(await svc.hasUpdate(), isFalse);
       await db.close();

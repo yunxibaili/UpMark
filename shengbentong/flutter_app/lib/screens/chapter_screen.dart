@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import '../models/models.dart';
 import '../services/db_service.dart';
+import 'knowledge_screen.dart';
+import 'quiz_screen.dart';
 
 class ChapterScreen extends StatefulWidget {
   final Subject subject;
@@ -102,8 +104,27 @@ class _ChapterScreenState extends State<ChapterScreen> {
                                   color: Colors.grey.shade600)),
                         ],
                       ]),
-                      trailing:
-                          const Icon(Icons.chevron_right, color: Colors.grey),
+                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                        if (r.hasKnowledge)
+                          IconButton(
+                              tooltip: '知识点',
+                              onPressed: () =>
+                                  Navigator.push(context, MaterialPageRoute(
+                                      builder: (_) => KnowledgeScreen(
+                                          chapterId: r.chapter.id,
+                                          title: r.chapter.title,
+                                          knowledgeMd: r.chapter.knowledgeMd))),
+                              icon: const Icon(Icons.menu_book,
+                                  color: brandBlue)),
+                        FilledButton.tonal(
+                            onPressed: () => Navigator.push(context,
+                                MaterialPageRoute(builder: (_) =>
+                                    QuizScreen(chapterId: r.chapter.id,
+                                        title: r.chapter.title))),
+                            style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact),
+                            child: const Text('练习')),
+                      ]),
                       onTap: () => _onTap(r),
                     ),
                   );
