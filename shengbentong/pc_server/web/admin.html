@@ -2,160 +2,296 @@
 <html lang="zh">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>升本通 · 管理后台</title>
 <style>
-:root{--blue:#4A90D9;--green:#52C41A;--red:#FF4D4F;--orange:#fa8c16;--bg:#F5F7FA;--card:#fff}
+:root{
+  --blue:#4A90D9;--blue-d:#3a7bc0;--green:#16a34a;--red:#e5484d;--orange:#d97706;
+  --bg:#f6f7f9;--card:#fff;--line:#e6e8ec;--ink:#191c1f;--sub:#697077;
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Microsoft YaHei",sans-serif;background:var(--bg);color:#333}
-.nav{display:flex;gap:0;background:var(--card);border-bottom:2px solid var(--blue);padding:0 20px}
-.nav button{background:none;border:none;padding:14px 24px;font-size:15px;cursor:pointer;color:#666;border-bottom:3px solid transparent;font-weight:500}
-.nav button.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:bold}
-.page{display:none;padding:20px;max-width:1100px;margin:0 auto}
-.page.active{display:block}
-.card{background:var(--card);border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:20px;margin-bottom:16px}
-.card h2{font-size:16px;margin-bottom:12px;color:#333}
-input[type=text]{width:60%;padding:9px 12px;border:1px solid #ccc;border-radius:8px;font-size:14px}
-button{background:var(--blue);color:#fff;border:none;border-radius:8px;padding:9px 20px;cursor:pointer;font-size:14px;transition:background .2s}
-button:hover{background:#3a7bc0}
-button:disabled{background:#ccc;cursor:not-allowed}
-table{border-collapse:collapse;width:100%}
-th,td{border:1px solid #e3e8ee;padding:7px 12px;text-align:left;font-size:13px}
-th{background:#eef4fb;font-weight:600}
-pre{background:#f4f6f8;padding:14px;border-radius:8px;max-height:400px;overflow:auto;font-size:12px;white-space:pre-wrap;line-height:1.6}
-.badge{padding:3px 10px;border-radius:5px;font-size:12px;font-weight:bold}
-.badge-success{background:#f6ffed;color:var(--green);border:1px solid #b7eb8f}
-.badge-partial{background:#fffbe6;color:var(--orange);border:1px solid #ffe58f}
-.badge-failed{background:#fff2f0;color:var(--red);border:1px solid #ffccc7}
-.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
-.stat-item{text-align:center;padding:12px;border-radius:10px;background:#f8f9fa}
-.stat-item .num{font-size:30px;font-weight:bold;color:var(--blue)}
-.stat-item .label{font-size:12px;color:#888}
-.subj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:14px 0}
-.subj-card{background:#f8f9fa;border:2px solid #e3e8ee;border-radius:10px;padding:14px 8px;text-align:center;cursor:pointer;transition:all .2s;font-size:14px;font-weight:500}
-.subj-card:hover{border-color:var(--blue);background:#f0f7ff}
-.subj-card.active{border-color:var(--blue);background:#e8f4fd;color:var(--blue);font-weight:bold}
-.prompt-box{width:100%;min-height:300px;padding:14px;border:1px solid #d9d9d9;border-radius:8px;font-family:monospace;font-size:13px;line-height:1.6;resize:vertical;background:#fafafa}
-.hint-box{background:#e8f4fd;border-radius:8px;padding:14px;margin-top:12px;font-size:13px;color:#555;line-height:1.8}
-.hint-box ol{padding-left:20px}
-.hint-box li{margin-bottom:4px}
-.err-table{width:100%;border-collapse:collapse;margin-top:8px}
-.err-table th{background:#fff1f0;color:#cf1322;font-size:12px}
-.err-table td{font-size:13px;padding:5px 8px}
-.err-table .code{font-weight:bold;color:#cf1322;font-family:monospace}
-details{margin-top:10px}
-summary{cursor:pointer;color:var(--blue);font-size:13px}
-.bad{color:var(--red)}.warn{color:var(--orange)}.ok{color:var(--green)}
+body{font-family:"Segoe UI","Microsoft YaHei",-apple-system,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6}
+
+/* ── 顶栏 ── */
+.topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:14px;
+  padding:0 28px;height:58px;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:600;letter-spacing:.5px}
+.brand .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#4A90D9,#35639f);
+  display:grid;place-items:center;color:#fff;font-size:13px;font-weight:700}
+.brand em{font-style:normal;color:var(--sub);font-weight:400;font-size:13px;margin-left:2px}
+.topbar .spacer{flex:1}
+.health{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub)}
+.health b{color:var(--ink);font-variant-numeric:tabular-nums}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(22,163,74,.15)}
+
+main{max-width:1180px;margin:0 auto;padding:26px 28px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  box-shadow:0 1px 2px rgba(16,24,40,.04);padding:22px;margin-bottom:18px}
+.card-head{display:flex;align-items:center;gap:9px;margin-bottom:14px}
+.card-head svg{flex:none;color:var(--blue)}
+.card-head h2{font-size:15px;font-weight:600}
+.card-head .right{margin-left:auto;display:flex;gap:14px;align-items:center}
+.card-head a{font-size:13px;color:var(--blue);text-decoration:none}
+.card-head a:hover{text-decoration:underline}
+.desc{font-size:13px;color:var(--sub);margin:-6px 0 14px}
+
+/* ── 导入行 ── */
+.import-row{display:flex;gap:10px}
+input[type=text]{flex:1;padding:10px 14px;border:1px solid var(--line);border-radius:10px;font-size:14px;
+  transition:border .15s, box-shadow .15s;background:#fafbfc}
+input[type=text]:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(74,144,217,.12);background:#fff}
+.btn{background:var(--blue);color:#fff;border:none;border-radius:10px;padding:10px 22px;font-size:14px;
+  font-weight:500;cursor:pointer;transition:background .15s, transform .05s;white-space:nowrap}
+.btn:hover{background:var(--blue-d)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{background:#c2c8cf;cursor:not-allowed}
+.btn-sm{padding:6px 14px;border-radius:8px;font-size:13px}
+.btn-ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn-ghost:hover{background:#f3f6fa;color:var(--blue)}
+.tip{font-size:12.5px;color:var(--sub);margin-top:10px}
+
+/* ── 双栏布局 ── */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+@media(max-width:960px){.layout{grid-template-columns:1fr}}
+
+/* ── 报告空态 ── */
+.empty{border:1.5px dashed #d5dae1;border-radius:14px;padding:56px 20px;text-align:center;color:var(--sub)}
+.empty svg{color:#c3cad3;margin-bottom:12px}
+.empty p{font-size:13.5px}.empty b{color:var(--ink)}
+
+/* ── 报告 ── */
+#reportCard{display:none}
+.badge{padding:3px 11px;border-radius:99px;font-size:12px;font-weight:600}
+.badge-success{background:#ecfdf3;color:var(--green);border:1px solid #abefc6}
+.badge-partial{background:#fffaeb;color:var(--orange);border:1px solid #fedf89}
+.badge-failed{background:#fef3f2;color:var(--red);border:1px solid #fecdca}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:6px}
+.stat-item{border:1px solid var(--line);border-radius:12px;padding:14px 10px;text-align:center;background:#fbfcfd}
+.stat-item .num{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+.stat-item .num.warn{color:var(--orange)}
+.stat-item .label{font-size:12px;color:var(--sub);margin-top:2px}
+.blk{margin-top:16px}
+.blk h3{font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--sub);font-weight:600;
+  text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+td{padding:8px 10px;border-bottom:1px solid #f0f2f5;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#fafbfd}
+.code{font-family:Consolas,monospace;font-weight:700;color:var(--red);font-size:12px}
+.mono{font-family:Consolas,monospace;font-size:12px}
+pre{background:#f8f9fb;border:1px solid var(--line);padding:14px;border-radius:10px;max-height:340px;
+  overflow:auto;font-size:12px;line-height:1.55;white-space:pre-wrap}
+details summary{cursor:pointer;font-size:13px;color:var(--sub);user-select:none}
+details summary:hover{color:var(--blue)}
+details[open] summary{margin-bottom:10px}
+
+/* ── AI 出题 ── */
+.subj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;margin-top:12px}
+.subj-card{border:1px solid var(--line);border-radius:9px;padding:9px 4px;text-align:center;cursor:pointer;
+  font-size:13px;background:#fbfcfd;transition:all .15s;color:var(--ink)}
+.subj-card:hover{border-color:var(--blue);color:var(--blue);background:#f4f9ff}
+.subj-card.active{border-color:var(--blue);background:#eaf3fc;color:var(--blue);font-weight:600}
+#promptCard{display:none;margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)}
+.prompt-actions{display:flex;gap:8px;margin-bottom:10px}
+.prompt-actions .grow{flex:1;font-size:13px;font-weight:600;align-self:center}
+.prompt-box{width:100%;min-height:210px;padding:12px;border:1px solid var(--line);border-radius:10px;
+  font-family:Consolas,monospace;font-size:12.5px;line-height:1.6;resize:vertical;background:#fafbfc;color:var(--ink)}
+.prompt-box:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(74,144,217,.12)}
+.steps{margin-top:12px;font-size:12.5px;color:var(--sub)}
+.steps ol{padding-left:18px;display:grid;gap:3px}
+
+/* ── 统计表 ── */
+.stats-total{display:flex;gap:14px;font-size:12.5px;color:var(--sub);margin-bottom:10px}
+.stats-total b{color:var(--blue);font-variant-numeric:tabular-nums}
+
+/* ── Toast ── */
+#toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);
+  background:#23272c;color:#fff;padding:10px 22px;border-radius:99px;font-size:13.5px;
+  opacity:0;pointer-events:none;transition:all .25s;z-index:99;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
 
-<div class="nav">
-  <button class="active" onclick="switchTab('import',this)">📥 导入题库</button>
-  <button onclick="switchTab('ai',this)">🤖 AI出题</button>
-  <button onclick="switchTab('stats',this)">📈 题库统计</button>
-</div>
+<header class="topbar">
+  <div class="brand"><span class="logo">升</span>升本通<em>管理后台</em></div>
+  <div class="spacer"></div>
+  <div class="health" id="health"><span class="dot"></span><span>连接中…</span></div>
+</header>
 
-<!-- ═══ Tab 1: 导入题库 ═══ -->
-<div id="page-import" class="page active">
-  <div class="card">
-    <h2>导入题库</h2>
-    <input id="path" type="text" placeholder="输入服务器上的题库根目录路径，如 D:\dev\upmark\test-bank">
-    <button id="btnImport" onclick="doImport()">导入</button>
+<main>
+
+  <!-- ═══ 导入题库 ═══ -->
+  <section class="card">
+    <div class="card-head">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <h2>导入题库</h2>
+      <div class="right">
+        <a href="/api/admin/template?kind=full" target="_blank">完整出题模板</a>
+        <a href="/api/admin/template?kind=md" target="_blank">MD格式规范</a>
+      </div>
+    </div>
+    <div class="import-row">
+      <input id="path" type="text" placeholder="输入服务器上的题库路径（目录或单个 .md 文件），如 D:\dev\upmark\shengbentong\test-bank">
+      <button class="btn" id="btnImport" onclick="doImport()">导入</button>
+    </div>
+    <p class="tip">支持目录递归导入；单个文件致命错误将整份拒绝（E码），题目级缺陷跳过并留痕（W码）。</p>
+  </section>
+
+  <div class="layout">
+    <!-- ═══ 左栏：导入报告 ═══ -->
+    <div>
+      <div id="reportEmpty" class="empty">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 13l3 3 5-6"/></svg>
+        <p><b>暂无导入报告</b></p>
+        <p>在上方输入路径点击「导入」，报告将显示在这里</p>
+      </div>
+
+      <section class="card" id="reportCard">
+        <div class="card-head">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          <h2>导入报告</h2>
+          <span id="statusBadge" class="badge"></span>
+          <div class="right"><button class="btn btn-sm btn-ghost" onclick="copyReport()">复制错误 · 回喂AI修复</button></div>
+        </div>
+        <div class="grid4" id="summaryGrid"></div>
+        <div class="blk" id="errSection" style="display:none">
+          <h3 style="color:var(--red)">被跳过的题目</h3>
+          <table><thead><tr><th>文件</th><th>行号</th><th>错误码</th><th>原因</th><th>题干</th></tr></thead><tbody id="errBody"></tbody></table>
+        </div>
+        <div class="blk" id="skipSection" style="display:none">
+          <h3 style="color:var(--orange)">被跳过的分区</h3>
+          <table><thead><tr><th>分区头</th><th>行号范围</th></tr></thead><tbody id="skipBody"></tbody></table>
+        </div>
+        <div class="blk" id="warnSection" style="display:none">
+          <h3 style="color:var(--orange)">警告（已自动保留）</h3>
+          <table><thead><tr><th>文件</th><th>行号</th><th>码</th><th>说明</th></tr></thead><tbody id="warnBody"></tbody></table>
+        </div>
+        <details class="blk"><summary>原始 JSON</summary><pre id="rawJson"></pre></details>
+      </section>
+    </div>
+
+    <!-- ═══ 右栏 ═══ -->
+    <aside>
+      <section class="card">
+        <div class="card-head">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.36 6.36-.7-.7M6.34 6.34l-.7-.7m12.72 0-.7.7M6.34 17.66l-.7.7M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>
+          <h2>AI 出题</h2>
+        </div>
+        <p class="desc" style="margin-bottom:0">选科目 → 复制提示词 → 粘贴给 AI：有现成题目就附上内容让它「转换」；没有题目就写明考试阶段/章节让它直接「出题」</p>
+        <div class="subj-grid" id="subjGrid"></div>
+        <div id="promptCard">
+          <div class="prompt-actions">
+            <span class="grow" id="promptTitle"></span>
+            <button class="btn btn-sm" onclick="copyPrompt()">复制提示词</button>
+          </div>
+          <textarea id="promptBox" class="prompt-box" readonly></textarea>
+          <details class="steps">
+            <summary>使用步骤</summary>
+            <ol>
+              <li>点「复制提示词」粘贴给 DeepSeek / ChatGPT / Kimi</li>
+              <li><b>有现成题目</b>：把教材/试卷内容附在提示词后面，让 AI 转换成规定格式</li>
+              <li><b>没有题目</b>：写明考试阶段和章节（如"考研高等数学第2章，各出10题"），让 AI 直接命题</li>
+              <li>AI 回复全选复制，存为 .md（UTF-8）</li>
+              <li>回到上方「导入题库」导入该文件</li>
+              <li>报错时点左上「复制错误」粘回 AI 让它修复</li>
+            </ol>
+          </details>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <h2>题库统计</h2>
+        </div>
+        <div class="stats-total" id="statsTotal"></div>
+        <table id="stats">
+          <thead><tr><th>科目</th><th>章</th><th>题</th><th>题型分布</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
+    </aside>
   </div>
 
-  <div class="card" id="reportCard" style="display:none">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-      <h2 style="margin:0">导入报告</h2>
-      <span id="statusBadge" class="badge"></span>
-      <button onclick="copyReport()" style="margin-left:auto;font-size:13px">📋 复制错误(回喂AI)</button>
-    </div>
-    <div class="grid4" id="summaryGrid"></div>
-    <div id="errSection" style="display:none">
-      <h2 class="bad" style="font-size:14px">❌ 被跳过的题目</h2>
-      <table class="err-table"><thead><tr><th>文件</th><th>行号</th><th>错误码</th><th>原因</th><th>题干</th></tr></thead><tbody id="errBody"></tbody></table>
-    </div>
-    <div id="skipSection" style="display:none;margin-top:10px">
-      <h2 class="warn" style="font-size:14px">⏭️ 被跳过的分区</h2>
-      <table class="err-table"><thead><tr><th>分区头</th><th>行号范围</th></tr></thead><tbody id="skipBody"></tbody></table>
-    </div>
-    <div id="warnSection" style="display:none;margin-top:10px">
-      <h2 class="warn" style="font-size:14px">⚠️ 警告</h2>
-      <table class="err-table"><thead><tr><th>文件</th><th>行号</th><th>码</th><th>说明</th></tr></thead><tbody id="warnBody"></tbody></table>
-    </div>
-    <details><summary>原始JSON</summary><pre id="rawJson"></pre></details>
-  </div>
-</div>
+</main>
 
-<!-- ═══ Tab 2: AI出题 ═══ -->
-<div id="page-ai" class="page">
-  <div class="card">
-    <h2>🤖 AI出题助手</h2>
-    <p style="font-size:13px;color:#666;margin-bottom:12px">
-      选择科目 → 复制提示词 → 粘贴给 AI（ChatGPT/DeepSeek/Kimi）→ 在末尾放教材内容 → AI回复保存为 .md → 回来导入
-    </p>
-    <div class="subj-grid" id="subjGrid"></div>
-  </div>
-
-  <div class="card" id="promptCard" style="display:none">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-      <h2 style="margin:0" id="promptTitle">提示词</h2>
-      <button onclick="copyPrompt()" style="margin-left:auto">📋 复制提示词</button>
-      <a href="https://chat.deepseek.com" target="_blank" style="font-size:13px;color:var(--blue)">打开DeepSeek ↗</a>
-      <a href="https://chatgpt.com" target="_blank" style="font-size:13px;color:var(--blue)">打开ChatGPT ↗</a>
-    </div>
-    <textarea id="promptBox" class="prompt-box" readonly></textarea>
-    <div class="hint-box">
-      <b>使用步骤：</b>
-      <ol>
-        <li>点击上方 <b>📋 复制提示词</b></li>
-        <li>打开 AI 对话（DeepSeek / ChatGPT / Kimi 等）</li>
-        <li>粘贴提示词，在末尾放入你的教材/试卷内容</li>
-        <li>AI 回复后，全选复制 → 新建 .md 文件粘贴保存（UTF-8）</li>
-        <li>回到 <b>📥 导入题库</b> 标签页导入该文件</li>
-        <li>如果报错 → 点 <b>📋 复制错误</b> → 粘贴回AI让它修复</li>
-      </ol>
-    </div>
-  </div>
-</div>
-
-<!-- ═══ Tab 3: 题库统计 ═══ -->
-<div id="page-stats" class="page">
-  <div class="card">
-    <h2>📈 题库统计</h2>
-    <table id="stats"><thead><tr><th>科目</th><th>章节</th><th>题目</th><th>按题型</th></tr></thead><tbody></tbody></table>
-  </div>
-</div>
+<div id="toast"></div>
 
 <script>
 const typeNames={single_choice:'单选',multiple_choice:'多选',judgment:'判断',fill_blank:'填空'};
-let lastReport=null, currentSubject='';
+let lastReport=null;
 
-function switchTab(id,btn){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
-  document.getElementById('page-'+id).classList.add('active');
-  btn.classList.add('active');
-  if(id==='stats') loadStats();
-  if(id==='ai') loadSubjects();
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._tm);t._tm=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+function copyText(text){
+  if(navigator.clipboard&&window.isSecureContext){
+    navigator.clipboard.writeText(text).then(()=>toast('已复制到剪贴板'));
+  }else{
+    const ta=document.createElement('textarea');
+    ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');toast('已复制到剪贴板')}catch(e){toast('复制失败，请手动选择文本')}
+    document.body.removeChild(ta);
+  }
+}
+
+// ═══ 服务健康 ═══
+async function loadHealth(){
+  try{
+    const r=await fetch('/api/health');const d=await r.json();
+    const s=d.stats||{};
+    document.getElementById('health').innerHTML=
+      `<span class="dot"></span><span>服务运行中 · <b>${s.subjects??'-'}</b> 科目 · <b>${s.chapters??'-'}</b> 章 · <b>${s.questions??'-'}</b> 题</span>`;
+  }catch(e){
+    document.getElementById('health').innerHTML=
+      '<span class="dot" style="background:var(--red);box-shadow:0 0 0 3px rgba(229,72,77,.15)"></span><span>服务未响应</span>';
+  }
 }
 
 // ═══ 导入 ═══
 async function doImport(){
   const path=document.getElementById('path').value.trim();
-  if(!path){alert('请输入路径');return}
+  if(!path){toast('请输入题库路径');return}
   const btn=document.getElementById('btnImport');
   btn.disabled=true;btn.textContent='导入中…';
   try{
-    const r=await fetch('/api/admin/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path})});
+    const r=await fetch('/api/admin/import',{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({path})});
     const d=await r.json();
-    if(r.status===404){alert(d.detail);return}
-    if(r.status===400){alert('导入失败:\n'+JSON.stringify(d.detail,null,2));return}
-    lastReport=d;renderReport(d);loadStats();
-  }catch(e){alert('请求失败: '+e)}
+    if(r.status===404){toast(d.detail||'路径不存在');return}
+    if(r.status===400){renderFatal(d.detail);return}
+    lastReport=d;renderReport(d);
+    toast(`导入完成：${d.report?.questions??0} 题入库`);
+    loadStats();loadHealth();
+  }catch(e){toast('请求失败：'+e)}
   finally{btn.disabled=false;btn.textContent='导入'}
 }
 
+function renderFatal(detail){
+  document.getElementById('reportEmpty').style.display='none';
+  document.getElementById('reportCard').style.display='block';
+  const badge=document.getElementById('statusBadge');
+  badge.textContent='REJECTED';badge.className='badge badge-failed';
+  document.getElementById('summaryGrid').innerHTML='';
+  ['errSection','skipSection','warnSection'].forEach(id=>document.getElementById(id).style.display='none');
+  const errs=(detail&&detail.errors)||[];
+  document.getElementById('errBody').innerHTML=errs.map(e=>
+    `<tr><td colspan="2" class="code">${e.code??'-'}</td><td>L${e.line??'-'}</td><td colspan="2">${e.msg??''}</td></tr>`).join('')
+    ||`<tr><td colspan="5">${(detail&&detail.message)||'文件未通过校验'}</td></tr>`;
+  document.getElementById('errSection').style.display='block';
+  document.getElementById('rawJson').textContent=JSON.stringify(detail,null,2);
+  toast((detail&&detail.message)||'文件被拒绝入库');
+}
+
 function renderReport(d){
+  document.getElementById('reportEmpty').style.display='none';
   document.getElementById('reportCard').style.display='block';
   const rep=d.report||{};
   const badge=document.getElementById('statusBadge');
@@ -165,15 +301,15 @@ function renderReport(d){
   document.getElementById('summaryGrid').innerHTML=`
     <div class="stat-item"><div class="num">${rep.questions??0}</div><div class="label">入库题目</div></div>
     <div class="stat-item"><div class="num">${rep.files_total??rep.filesTotal??0}</div><div class="label">文件数</div></div>
-    <div class="stat-item"><div class="num" style="color:var(--orange)">${rep.questions_skipped??rep.questionsSkipped??0}</div><div class="label">跳过题目</div></div>
-    <div class="stat-item"><div class="num" style="color:var(--orange)">${rep.sections_skipped??rep.sectionsSkipped??0}</div><div class="label">跳过分区</div></div>`;
+    <div class="stat-item"><div class="num warn">${rep.questions_skipped??rep.questionsSkipped??0}</div><div class="label">跳过题目</div></div>
+    <div class="stat-item"><div class="num warn">${rep.sections_skipped??rep.sectionsSkipped??0}</div><div class="label">跳过分区</div></div>`;
 
   const skipped=rep.skipped_questions??rep.skippedQuestions??[];
   const errSec=document.getElementById('errSection'),errBody=document.getElementById('errBody');
   errBody.innerHTML='';
   if(skipped.length){errSec.style.display='block';
     skipped.forEach(s=>{errBody.insertAdjacentHTML('beforeend',
-      `<tr><td>${(s.file??'-').split(/[\\/]/).pop()}</td><td>${s.line??'-'}</td><td class="code">${s.code}</td><td>${s.reason??''}</td><td>${(s.stem_preview??s.stemPreview??'').substring(0,40)}</td></tr>`)})
+      `<tr><td>${(s.file??'-').split(/[\\/]/).pop()}</td><td class="mono">${s.line??'-'}</td><td class="code">${s.code}</td><td>${s.reason??''}</td><td>${(s.stem_preview??s.stemPreview??'').substring(0,36)}</td></tr>`)})
   }else errSec.style.display='none';
 
   const sections=rep.skipped_sections??rep.skippedSections??[];
@@ -181,7 +317,7 @@ function renderReport(d){
   skipBody.innerHTML='';
   if(sections.length){skipSec.style.display='block';
     sections.forEach(s=>{skipBody.insertAdjacentHTML('beforeend',
-      `<tr><td>${s.header??s.section??'-'}</td><td>${s.start_line??'-'} ~ ${s.end_line??'-'}</td></tr>`)})
+      `<tr><td>${s.header??s.section??'-'}</td><td class="mono">${s.start_line??'-'} ~ ${s.end_line??'-'}</td></tr>`)})
   }else skipSec.style.display='none';
 
   const warnings=rep.warnings??[];
@@ -189,14 +325,14 @@ function renderReport(d){
   warnBody.innerHTML='';
   if(warnings.length){warnSec.style.display='block';
     warnings.forEach(w=>{warnBody.insertAdjacentHTML('beforeend',
-      `<tr><td>${w.file??'-'}</td><td>${w.line??'-'}</td><td class="code">${w.code}</td><td>${w.msg??''}</td></tr>`)})
+      `<tr><td>${(w.file??'-').split(/[\\/]/).pop()}</td><td class="mono">${w.line??'-'}</td><td class="code">${w.code}</td><td>${w.msg??''}</td></tr>`)})
   }else warnSec.style.display='none';
 
   document.getElementById('rawJson').textContent=JSON.stringify(rep,null,2);
 }
 
 function copyReport(){
-  if(!lastReport)return;
+  if(!lastReport){toast('暂无报告可复制');return}
   const rep=lastReport.report??{};
   const skipped=rep.skipped_questions??rep.skippedQuestions??[];
   const sections=rep.skipped_sections??rep.skippedSections??[];
@@ -206,32 +342,29 @@ function copyReport(){
   if(sections.length){text+='\n=== 被跳过的分区（不需要输出） ===\n';
     sections.forEach(s=>{text+=`- ${s.header??s.section}\n`})}
   text+='\n请修复以上问题后重新输出完整文档。';
-  navigator.clipboard.writeText(text);
-  alert('已复制，粘贴给AI即可修复');
+  copyText(text+'');
 }
 
 // ═══ AI出题 ═══
 async function loadSubjects(){
   try{
-    const r=await fetch('/api/admin/subjects');
-    const d=await r.json();
-    const grid=document.getElementById('subjGrid');
-    grid.innerHTML='';
+    const r=await fetch('/api/admin/subjects');const d=await r.json();
+    const grid=document.getElementById('subjGrid');grid.innerHTML='';
     (d.subjects||[]).forEach(name=>{
       const div=document.createElement('div');
       div.className='subj-card';div.textContent=name;
       div.onclick=()=>selectSubject(name,div);
       grid.appendChild(div);
     });
-  }catch(e){console.error(e)}
+  }catch(e){}
 }
 
 async function selectSubject(name,el){
   document.querySelectorAll('.subj-card').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
-  currentSubject=name;
   document.getElementById('promptCard').style.display='block';
-  document.getElementById('promptTitle').textContent=`${name} · 出题提示词`;
+  document.getElementById('promptTitle').textContent=name+' · 出题提示词';
+  document.getElementById('promptBox').value='加载中…';
   try{
     const r=await fetch(`/api/admin/template/subject/${encodeURIComponent(name)}`);
     document.getElementById('promptBox').value=await r.text();
@@ -239,22 +372,28 @@ async function selectSubject(name,el){
 }
 
 function copyPrompt(){
-  const box=document.getElementById('promptBox');
-  box.select();navigator.clipboard.writeText(box.value);
-  alert('提示词已复制，粘贴给AI即可');
+  copyText(document.getElementById('promptBox').value);
 }
 
 // ═══ 统计 ═══
 async function loadStats(){
-  const r=await fetch('/api/admin/stats');const d=await r.json();
-  const tb=document.querySelector('#stats tbody');tb.innerHTML='';
-  (d.subjects||[]).forEach(s=>{
-    const types=Object.entries(s.by_type).map(([k,v])=>`${typeNames[k]||k}:${v}`).join(' ');
-    tb.insertAdjacentHTML('beforeend',
-      `<tr><td>${s.name}</td><td>${s.chapters}</td><td>${s.questions}</td><td>${types}</td></tr>`)});
+  try{
+    const r=await fetch('/api/admin/stats');const d=await r.json();
+    const tb=document.querySelector('#stats tbody');tb.innerHTML='';
+    let tc=0,qc=0;
+    (d.subjects||[]).forEach(s=>{
+      tc+=s.chapters;qc+=s.questions;
+      const types=Object.entries(s.by_type).map(([k,v])=>`${typeNames[k]||k}${v}`).join(' / ');
+      tb.insertAdjacentHTML('beforeend',
+        `<tr><td>${s.name}</td><td class="mono">${s.chapters}</td><td class="mono">${s.questions}</td><td style="color:var(--sub);font-size:12px">${types}</td></tr>`)});
+    document.getElementById('statsTotal').innerHTML=
+      d.subjects&&d.subjects.length?`共 <b>${d.subjects.length}</b> 科目 · <b>${tc}</b> 章 · <b>${qc}</b> 题`:'<span>暂无数据，请先导入</span>';
+  }catch(e){}
 }
 
+loadHealth();
 loadStats();
+loadSubjects();
 </script>
 </body>
 </html>
