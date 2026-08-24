@@ -122,7 +122,11 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('o4'));
       await tester.pump();
-      await tester.tap(find.textContaining('确认作答'));
+
+      final confirm = find.textContaining('确认作答');
+      await tester.ensureVisible(confirm);
+      await tester.pump();
+      await tester.tap(confirm);
       await tester.pump();
 
       expect(find.text('回答正确'), findsOneWidget);   // ABD
@@ -150,11 +154,28 @@ void main() {
   group('知识点入口', () {
     testWidgets('学完本章→跳转刷题页', (tester) async {
       await tester.pumpWidget(MaterialApp(home:
-          KnowledgeScreen(chapterId: 11, title: '样例')));
+          KnowledgeScreen(title: '样例', knowledgeMd: '# 第一章知识点',
+              questions: [mkSingle()])));
       await tester.pump();
 
-      expect(find.textContaining('开始练习'), findsAny);
-      // 不tap跳转（无DB数据时按钮disabled）
+      expect(find.textContaining('开始练习'), findsOneWidget);
+      expect(find.text('本章无练习题'), findsNothing);
+
+      await tester.tap(find.textContaining('开始练习'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('单选样例'), findsOneWidget);
+    });
+
+    testWidgets('无题目时按钮禁用', (tester) async {
+      await tester.pumpWidget(MaterialApp(home:
+          KnowledgeScreen(title: '样例', knowledgeMd: null, questions: [])));
+      await tester.pump();
+
+      expect(find.text('本章无练习题'), findsOneWidget);
+      final btn = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, '本章无练习题'));
+      expect(btn.onPressed, isNull);
     });
   });
 }

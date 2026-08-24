@@ -54,9 +54,14 @@ class _ChapterScreenState extends State<ChapterScreen> {
             questions: rows.map(Question.fromRow).toList())));
   }
 
-  void _openKnowledge(Chapter c) {
+  Future<void> _openKnowledge(Chapter c) async {
+    final db = await DbService.open();
+    final md = await db.knowledgeOf(c.id);
+    final rows = await db.rawQuestionsOf(c.id);
+    if (!mounted) return;
     Navigator.push(context, MaterialPageRoute(builder: (_) =>
-        KnowledgeScreen(chapterId: c.id, title: c.title)));
+        KnowledgeScreen(title: c.title, knowledgeMd: md,
+            questions: rows.map(Question.fromRow).toList())));
   }
 
   @override

@@ -181,6 +181,17 @@ class _QuizScreenState extends State<QuizScreen> {
                   style: FilledButton.styleFrom(backgroundColor: brandBlue),
                   child: const Text('提交'))),
         ],
+      QuestionType.multipleChoice => [
+          for (var i = 0; i < _q.options.length; i++)
+            _optionTile(String.fromCharCode(65 + i), _q.options[i]),
+          const SizedBox(height: 4),
+          FilledButton(
+              key: const Key('btn_confirm_multi'),
+              onPressed: _picked.isEmpty ? null : () => _answer(_picked.toList()),
+              style: FilledButton.styleFrom(backgroundColor: brandBlue,
+                  minimumSize: const Size.fromHeight(48)),
+              child: Text(_picked.isEmpty ? '请选择答案（可多选）' : '确认作答(${_picked.length})')),
+        ],
       _ => [for (var i = 0; i < _q.options.length; i++)
              _optionTile(String.fromCharCode(65 + i), _q.options[i])],
     };
@@ -226,9 +237,11 @@ class _QuizScreenState extends State<QuizScreen> {
   Widget _navBar() {
     return SafeArea(child: Padding(padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
       child: Row(children: [
-        OutlinedButton(onPressed: _index == 0 ? null : _prev, child: const Text('上一题')),
+        OutlinedButton(key: const Key('btn_prev'),
+            onPressed: _index == 0 ? null : _prev, child: const Text('上一题')),
         const Spacer(),
-        FilledButton(onPressed: _index == _questions.length - 1 ? null : _next,
+        FilledButton(key: const Key('btn_next'),
+            onPressed: _index == _questions.length - 1 ? null : _next,
             style: FilledButton.styleFrom(backgroundColor: brandBlue),
             child: const Text('下一题')),
       ])));
