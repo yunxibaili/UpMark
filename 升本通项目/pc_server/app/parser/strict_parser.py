@@ -40,6 +40,7 @@ RE_SEC_SEQ = re.compile(r"^([一二三四五六七八九十]{1,3})、\s*(.*)$")
 RE_CHAPTER = re.compile(r"^第\s*([0-9]{1,3}|[一两二三四五六七八九十]{1,3})\s*章\s*(.*)$")
 RE_SUFFIX = re.compile(r"\s*(练习题|知识点总结)\s*$")
 RE_HTML_COMMENT = re.compile(r"^<!--.*?-->\s*$")
+RE_SUBJECT = re.compile(r"^<!--\s*subject\s*[:：]\s*(.+?)\s*-->\s*$")
 
 CN_NUM = {"一": 1, "两": 2, "二": 2, "三": 3, "四": 4, "五": 5,
           "六": 6, "七": 7, "八": 8, "九": 9, "十": 10}
@@ -119,8 +120,10 @@ class StrictMDParser:
     """
 
     def parse_exercises(self, text: str, source_name: str = "",
-                        fallback_title: str = "") -> ParseResult:
+                        fallback_title: str = "",
+                        fallback_subject: str | None = None) -> ParseResult:
         self.src = source_name
+        self.subject_declared: Optional[str] = None
         self.warnings: List[WarningItem] = []
         self.skipped_qs: List[SkippedItem] = []
         self.skipped_secs: List[SkippedSection] = []
@@ -131,7 +134,9 @@ class StrictMDParser:
         except FileRejected as e:
             return e.to_result()
         return ParseResult(
-            ok=True, chapter=self.chapter, questions=self.imported,
+            ok=True, chapter=self.chapter,
+            subject=self.subject_declared or fallback_subject or None,
+            questions=self.imported,
             skipped_questions=self.skipped_qs, skipped_sections=self.skipped_secs,
             warnings=self.warnings)
 
@@ -243,8 +248,13 @@ class StrictMDParser:
 
             # ---------- PREAMBLE ----------
             if state == "PREAMBLE":
-                if RE_HTML_COMMENT.match(stripped) or not stripped:
-                    prev_blank = not stripped
+                if not stripped:
+                    prev_blank = True
+                    continue
+                if RE_HTML_COMMENT.match(stripped):
+                    ms = RE_SUBJECT.match(stripped)
+                    if ms:
+                        self.subject_declared = ms.group(1).strip()
                     continue
                 m_h1 = RE_H1.match(line)
                 if m_h1 and m_h1.group(1).strip():
@@ -717,10 +727,17 @@ class StrictMDParser:
 
     # ------------------------------------------------------------ 知识点文件
     def parse_knowledge(self, text: str, source_name: str = "",
-                        fallback_title: str = "") -> ParseResult:
+                        fallback_title: str = "",
+                        fallback_subject: str | None = None) -> ParseResult:
         """K规则：不做结构强校验，仅提取H1章节信息，原文整体保留。"""
         self.src = source_name
         self.warnings = []
+        subject_declared = None
+        for line in text.split("\n")[:5]:                 # 仅扫描文件头部声明
+            ms = RE_SUBJECT.match(line.strip())
+            if ms:
+                subject_declared = ms.group(1).strip()
+                break
         lines = text.replace("\r\n", "\n").split("\n")
         in_code = False
         h1_count = 0
@@ -747,7 +764,9 @@ class StrictMDParser:
             title = (fallback or source_name or "未命名章节").strip()
             self.warnings.append(WarningItem(1, "W315", f"缺少H1标题，使用兜底名「{title}」"))
             chapter = ChapterInfo(None, title)
-        return ParseResult(ok=True, chapter=chapter, warnings=self.warnings)
+        return ParseResult(ok=True, chapter=chapter,
+                           subject=subject_declared or fallback_subject or None,
+                           warnings=self.warnings)
 
 
 # ---------------------------------------------------------------- CLI 独立运行
@@ -772,6 +791,7 @@ if __name__ == "__main__":  # pragma: no cover
     payload = {
         "ok": result.ok,
         "file": path,
+        "subject": result.subject,
         "chapter": result.chapter.__dict__ if result.chapter else None,
         "stats": result.stats,
         "questions": [q.to_dict() for q in result.questions],

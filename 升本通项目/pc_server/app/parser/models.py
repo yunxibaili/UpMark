@@ -85,6 +85,7 @@ class ChapterInfo:
 class ParseResult:
     ok: bool
     chapter: Optional[ChapterInfo]
+    subject: Optional[str] = None       # 科目（内嵌声明优先，回退调用方传入）
     questions: List[Question] = field(default_factory=list)
     skipped_questions: List[SkippedItem] = field(default_factory=list)
     skipped_sections: List[SkippedSection] = field(default_factory=list)
