@@ -75,13 +75,32 @@ class _QuizScreenState extends State<QuizScreen> {
       body: Center(child: Text('本章暂无题目', style: TextStyle(color: Colors.grey))));
 
   Widget _questionCard() {
+    final material = _q.material ?? '';
     return Card(elevation: 1.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(padding: const EdgeInsets.all(16), child: Column(
         crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [_typeChip(), const SizedBox(width: 8)]),
+          if (material.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(maxHeight: 300),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFF0F5FC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: brandBlue.withValues(alpha: .15))),
+              child: SingleChildScrollView(
+                  child: Text(material,
+                      style: TextStyle(fontSize: 14.5, height: 1.6,
+                          color: Colors.grey.shade800)))),
+            const SizedBox(height: 12),
+          ],
           const SizedBox(height: 6),
-          Text(_q.stem.isEmpty ? '（完形填空 第${_q.number}空）' : _q.stem,
+          Text(_q.stem.isEmpty
+                  ? '（完形填空 第${_q.number}空）'
+                  : _q.stem,
               style: const TextStyle(fontSize: 16, height: 1.5)),
         ])));
   }

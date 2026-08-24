@@ -531,31 +531,42 @@ class StrictMDParser:
         if q.option_pairs or not q.stem_parts:
             return
         text = q.stem_parts[0]
-        m = RE_INLINE_A.search(text)
-        if not m:
+
+        # 一次性找出所有选项标记位置
+        positions: dict = {}
+        for m in re.compile(r"(?:^|\s)([A-D])[\.．]\s*").finditer(text):
+            letter = m.group(1)
+            if letter not in positions:
+                positions[letter] = m.start()
+
+        # 验证A→B→C→D全部存在且递增
+        letters = ["A", "B", "C", "D"]
+        if any(l not in positions for l in letters):
             return
-        head = text[:m.start()].strip()
-        rest = text[m.end():].strip()
-        if not rest:
+        if [positions[l] for l in letters] != sorted(positions[l] for l in letters):
             return
-        pairs = [("A", rest)]
-        expected = "B"
-        pos = 0
-        while True:
-            sm = re.compile(r"(?:^|[　\s]{2,})([B-D])[\.．]\s*").search(rest, pos)
-            if not sm or sm.group(1) != expected:
-                break
-            start = sm.end()
-            nxt = re.compile(r"[　\s]{2,}(?=[C-D][\.．])").search(rest, start)
-            seg_end = nxt.start() if nxt else len(rest)
-            pairs.append((sm.group(1), rest[start:seg_end].strip()))
-            expected = chr(ord(expected) + 1)
-            pos = seg_end
-            if expected > "D":
-                break
-        if [p[0] for p in pairs] == ["A", "B", "C", "D"]:
-            q.stem_parts = [head] if head else [""]
-            q.option_pairs = pairs
+
+        # 提取题干（A之前的文本）
+        head = text[:positions["A"]].strip()
+
+        # 按标记位置切分选项内容
+        pairs = []
+        for i, letter in enumerate(letters):
+            marker_start = positions[letter]
+            # 跳过 "X. " 前缀找到内容起点
+            dot_offset = text.index(".", marker_start)
+            content_start = dot_offset + 1
+            while content_start < len(text) and text[content_start] in " \t　":
+                content_start += 1
+            # 内容终点 = 下一个标记的起点 或 文本末尾
+            content_end = positions[letters[i + 1]] if i < 3 else len(text)
+            pairs.append((letter, text[content_start:content_end].strip()))
+
+        if any(not p[1] for p in pairs):
+            return
+
+        q.stem_parts = [head] if head else [""]
+        q.option_pairs = pairs
 
     def _lookahead_says_question(self, lines: List[str], idx_one_based: int) -> bool:
         """从候选行向后找结构性证据（选项/答案/讲解/材料/分区/分隔线/围栏/其他题干）。
