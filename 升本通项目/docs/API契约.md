@@ -30,6 +30,7 @@ BaseURL: http://<PC局域网IP>:8000
 ```jsonc
 {
   "schema_version": 1,
+  "data_version": "20240824-1",      // 题库数据版本：App本地存此值，不一致时提示"题库有更新"
   "exported_at": "2026-08-23T10:00:00",
   "subjects": [
     {"id": 1, "name": "C语言", "chapters": [

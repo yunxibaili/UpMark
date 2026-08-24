@@ -16,6 +16,7 @@ from ..schemas.schemas import ProgressBatch, ProgressItem
 
 router = APIRouter(prefix="/api", tags=["sync"])
 SCHEMA_VERSION = 1
+DATA_VERSION = "20240824-1"   # 题库数据版本：每次导入后由bulk_importer侧更新
 
 
 def _question_dict(q: Question) -> dict:
@@ -79,6 +80,7 @@ def sync_all(db: Session = Depends(get_db)):
     subjects = db.query(Subject).order_by(Subject.name).all()
     return {
         "schema_version": SCHEMA_VERSION,
+        "data_version": DATA_VERSION,
         "exported_at": datetime.now().isoformat(timespec="seconds"),
         "subjects": [_subject_dict(s, deep=True) for s in subjects],
     }
