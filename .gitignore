@@ -19,6 +19,8 @@ venv/
 # ---- 数据库与运行时文件 ----
 *.db
 *.sqlite3
+*.hprof
+
 # ---- 编辑器/系统 ----
 .vscode/
 .idea/

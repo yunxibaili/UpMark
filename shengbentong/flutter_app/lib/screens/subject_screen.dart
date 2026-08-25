@@ -218,7 +218,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
                               horizontal: 5, vertical: 1),
                           decoration: BoxDecoration(
                               color: color,
-                              borderRadius: BorderRadius.circular(9)),
+                              borderRadius: BorderRadius.circular(10)),
                           constraints:
                               const BoxConstraints(minWidth: 17),
                           child: Text(badge,

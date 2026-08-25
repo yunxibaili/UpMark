@@ -256,7 +256,7 @@ class _QuizScreenState extends State<QuizScreen> {
     final isMulti = _q.type == QuestionType.multipleChoice;
     final picked = isMulti && _picked.contains(letter);
     return Padding(padding: const EdgeInsets.only(bottom: 10),
-      child: InkWell(borderRadius: BorderRadius.circular(9),
+      child: InkWell(borderRadius: BorderRadius.circular(10),
         onTap: () {
           if (_isAnswered) return;
           if (isMulti) {
@@ -268,7 +268,7 @@ class _QuizScreenState extends State<QuizScreen> {
         child: Container(width: double.infinity, padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
               border: Border.all(color: picked ? brandBlue : Colors.grey.shade300, width: 1.4),
-              borderRadius: BorderRadius.circular(9)),
+              borderRadius: BorderRadius.circular(10)),
           child: Row(children: [
             CircleAvatar(radius: 13,
                 backgroundColor: picked ? brandBlue : brandBlue.withValues(alpha: .15),
