@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import '../models/models.dart';
 import '../services/db_service.dart';
+import '../services/quiz_logic.dart';
+import 'exam_screen.dart';
 import 'knowledge_screen.dart';
 import 'quiz_screen.dart';
 
@@ -79,6 +81,52 @@ class _ChapterScreenState extends State<ChapterScreen> {
         duration: const Duration(seconds: 3)));
   }
 
+  /// T-106 模拟考试：全科目随机抽题（≤50），1题1分钟封顶90分钟
+  Future<void> _openExam() async {
+    final db = await DbService.open();
+    final chapters = await db.chaptersOf(widget.subject.id);
+    final ids = <int>[];
+    for (final c in chapters) {
+      final rows = await db.rawQuery(
+          'SELECT id FROM questions WHERE chapter_id = ?', [c.id]);
+      ids.addAll(rows.map((r) => r['id'] as int));
+    }
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    if (ids.length < 5) {
+      messenger.showSnackBar(const SnackBar(
+          content: Text('该科目题目不足 5 道，无法组卷'), backgroundColor: Colors.grey));
+      return;
+    }
+    ids.shuffle();
+    final questions =
+        await db.questionsByIds(ids.take(50).toList());
+    questions.shuffle();
+    final minutes = questions.length.clamp(5, 90);
+    var saved = 0;
+    if (!mounted) return;
+    await Navigator.push(context, MaterialPageRoute(
+        builder: (_) => ExamScreen(
+            title: widget.subject.name,
+            questions: questions,
+            durationMinutes: minutes,
+            onSubmit: (picks) {
+              for (final q in questions) {
+                // 未作答也按错误落库（考试语义：暴露未掌握题，重练答对自动移出）
+                final pick = picks[q.id];
+                final ua = pick == null
+                    ? const UserAnswer(display: '未作答', isCorrect: false)
+                    : QuizLogic.evaluate(q, pick);
+                db.saveProgress(questionId: q.id, isCorrect: ua.isCorrect);
+                saved++;
+              }
+            })));
+    if (!mounted || saved == 0) return;
+    messenger.showSnackBar(SnackBar(
+        content: Text('模拟考试已交卷：$saved 题记入本地进度；错题见「错题本」'),
+        duration: const Duration(seconds: 3)));
+  }
+
   Future<void> _openKnowledge(Chapter c) async {
     final db = await DbService.open();
     final md = await db.knowledgeOf(c.id);
@@ -101,7 +149,13 @@ class _ChapterScreenState extends State<ChapterScreen> {
       appBar: AppBar(
           title: Text(widget.subject.name,
               style: const TextStyle(fontWeight: FontWeight.bold)),
-          backgroundColor: brandBlue, foregroundColor: Colors.white),
+          backgroundColor: brandBlue, foregroundColor: Colors.white,
+          actions: [
+            IconButton(
+                tooltip: '模拟考试（全科目随机限时）',
+                onPressed: _openExam,
+                icon: const Icon(Icons.timer)),
+          ]),
       body: FutureBuilder<List<_Row>>(
           future: _future,
           builder: (context, snap) {
@@ -121,7 +175,7 @@ class _ChapterScreenState extends State<ChapterScreen> {
                   final r = rows[i];
                   return Card(
                     elevation: 1,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     child: ListTile(
                       leading: CircleAvatar(
                           backgroundColor: brandBlue.withValues(alpha: .12),
