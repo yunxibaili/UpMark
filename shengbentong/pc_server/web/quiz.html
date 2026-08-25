@@ -139,10 +139,11 @@ function renderRich(s){
   let html;
   try{ html = marked.parse(mdEscapeOutsideFences(s), {breaks:true, gfm:true}); }
   catch(e){ return esc(s); }
-  // 行内公式 $...$ → <code class=math>（跳过<pre>代码块内部）
+  // 行内公式剥掉$定界符 → <code class=math>（跳过<pre>代码块内部；$$块剥两层）
   return html.split(/(<pre>[\s\S]*?<\/pre>)/g).map(p=>
     p.startsWith('<pre>') ? p
-    : p.replace(/\$([^$\n]+)\$/g, '<code class="math">$1</code>')).join('');
+    : p.replace(/\$\$([^$]+?)\$\$|\$([^$\n]+?)\$/g,
+        '<code class="math">$1$2</code>')).join('');
 }
 
 async function load(){

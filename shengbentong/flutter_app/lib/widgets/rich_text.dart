@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 
 import '../main.dart';
 
-final _inlineRe = RegExp(r'(\$[^$\n]+\$|`[^`\n]+`)');
+final _inlineRe = RegExp(r'\$\$([^$]+?)\$\$|\$([^$\n]+?)\$|`[^`\n]+`');
 final _fence = RegExp(r'^\s{0,3}```');
 
 /// 把含公式/代码标记的文本渲染为富文本Widget
@@ -66,8 +66,12 @@ List<InlineSpan> _inlineSpans(String text, TextStyle? style) {
     if (m.start > start) spans.add(TextSpan(text: text.substring(start, m.start)));
     final tok = m.group(0)!;
     if (tok.startsWith(r'$')) {
+      // 剥掉 $ / $$ 定界符，仅渲染公式内容（用户反馈：定界符不应显示）
+      final body = tok.startsWith(r'$$')
+          ? tok.substring(2, tok.length - 2)
+          : tok.substring(1, tok.length - 1);
       spans.add(TextSpan(
-          text: tok,
+          text: body,
           style: base.copyWith(
               fontFamily: 'monospace',
               fontStyle: FontStyle.italic,
