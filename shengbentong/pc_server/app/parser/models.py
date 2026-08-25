@@ -1,5 +1,5 @@
 """升本通 MD 解析器 — 数据模型
-对应《MD格式规范v2.0》第十节 JSON Schema。
+对应《MD格式规范v2.1》第十一节 JSON Schema。
 """
 from __future__ import annotations
 
