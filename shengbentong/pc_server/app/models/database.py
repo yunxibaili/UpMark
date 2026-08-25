@@ -101,7 +101,7 @@ class AnswerRecord(Base):
 
 
 class ImportLog(Base):
-    """导入日志：report_json 存完整导入报告（《规范v2.1》第十节格式）"""
+    """导入日志：report_json 存完整导入报告（《规范v2.2》第十节格式）"""
     __tablename__ = "import_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

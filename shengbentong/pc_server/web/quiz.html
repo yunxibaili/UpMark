@@ -44,7 +44,13 @@ main{max-width:860px;margin:0 auto;padding:24px 26px 60px}
   background:#eaf3fc;color:var(--blue)}
 .material{margin-top:14px;padding:14px;background:#f0f5fc;border:1px solid rgba(74,144,217,.15);
   border-radius:10px;max-height:260px;overflow:auto;font-size:14px;line-height:1.7;color:#333}
-.stem{margin-top:14px;font-size:16px;line-height:1.7;white-space:pre-wrap}
+.stem{margin-top:14px;font-size:16px;line-height:1.7}
+.stem p,.opt-content p,.material p{margin:0}
+code.math{font-family:Consolas,"Courier New",monospace;font-style:italic;color:var(--blue);
+  background:#eef5fc;padding:0 5px;border-radius:4px}
+pre{background:#f2f3f5;border-radius:8px;padding:12px;overflow-x:auto;margin:10px 0}
+pre code{font-family:Consolas,"Courier New",monospace;font-size:13px;background:none;padding:0;color:#24292f}
+.opt-content{flex:1;min-width:0}
 .opt{display:flex;align-items:center;gap:12px;border:1.4px solid var(--line);border-radius:10px;
   padding:12px 14px;margin-top:10px;cursor:pointer;transition:all .12s;font-size:15px}
 .opt:hover{border-color:var(--blue)}
@@ -101,6 +107,7 @@ main{max-width:860px;margin:0 auto;padding:24px 26px 60px}
 <main id="main"><div class="empty">正在加载题库…</div></main>
 <div id="toast"></div>
 
+<script src="/static/marked.min.js"></script>
 <script>
 const typeNames = {single_choice:'单选', multiple_choice:'多选', judgment:'判断', fill_blank:'填空'};
 let DATA = null;                 // {subjects:[...]}
@@ -114,6 +121,28 @@ function toast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   clearTimeout(t._tm); t._tm = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ── 富文本渲染（T-111：本地marked零CDN，公式/代码样式区分，不做数学排版） ── */
+function mdEscapeOutsideFences(s){
+  let inFence = false;
+  return s.split('\n').map(l=>{
+    if(/^\s{0,3}```/.test(l)){ inFence = !inFence; return l; }
+    if(inFence) return l;
+    return l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }).join('\n');
+}
+function renderRich(s){
+  s = (s??'').toString();
+  if(!s) return '';
+  if(typeof marked === 'undefined') return esc(s);   // marked缺失兜底
+  let html;
+  try{ html = marked.parse(mdEscapeOutsideFences(s), {breaks:true, gfm:true}); }
+  catch(e){ return esc(s); }
+  // 行内公式 $...$ → <code class=math>（跳过<pre>代码块内部）
+  return html.split(/(<pre>[\s\S]*?<\/pre>)/g).map(p=>
+    p.startsWith('<pre>') ? p
+    : p.replace(/\$([^$\n]+)\$/g, '<code class="math">$1</code>')).join('');
 }
 
 async function load(){
@@ -195,11 +224,11 @@ function qCardHtml(q, st){
   const multiPicked = st && st.pickedLetters ? st.pickedLetters : [];
   let html = `<span class="type-chip">${typeNames[q.type]||'题'}</span>
     <span style="font-size:12px;color:var(--sub);margin-left:8px">第 ${q.number||idx+1} 题</span>`;
-  if(q.material) html += `<div class="material">${esc(q.material)}</div>`;
+  if(q.material) html += `<div class="material">${renderRich(q.material)}</div>`;
   if(q.image) html += `<div style="margin-top:14px;text-align:center;background:#fafbfc;
     border:1px solid var(--line);border-radius:10px;padding:10px">
     <img src="${esc(q.image)}" style="max-width:100%;max-height:300px;border-radius:6px" alt="题图"></div>`;
-  html += `<div class="stem">${esc(q.stem) || '（完形填空 · 根据材料作答）'}</div>`;
+  html += `<div class="stem">${renderRich(q.stem) || '（完形填空 · 根据材料作答）'}</div>`;
   if(q.type==='judgment'){
     html += `<div class="judge-row">
       ${judgeBtn('√', true, q, st)}${judgeBtn('×', false, q, st)}</div>`;
@@ -225,7 +254,7 @@ function qCardHtml(q, st){
                                 (q.type==='single_choice' && pickedSet.has(letter)));
       if(pickedNow) cls += ' picked';
       return `<div class="${cls}" onclick="pickOption('${letter}')">
-        <span class="letter">${letter}</span><span>${esc(o)}</span></div>`;
+        <span class="letter">${letter}</span><div class="opt-content">${renderRich(o)}</div></div>`;
     }).join('');
     if(q.type==='multiple_choice' && !st){
       html += `<button class="confirm-btn" id="confirmMulti"
@@ -364,7 +393,7 @@ function resultHtml(q, st){
     detail = `你的作答：${st.input} ｜ 参考答案：${(q.accepts&&q.accepts.length)?q.accepts.map(b=>b.join('/')).join(' ｜ '):q.answer}`;
   return `<div class="result ${st.correct?'ok':'bad'}">${st.correct?'回答正确 ✓':'回答错误 ✗'}
       <div class="detail">${esc(detail)}</div></div>
-    <div class="explain"><b>【讲解】</b><p>${esc(q.explanation||'（本题暂无解析）')}</p></div>
+    <div class="explain"><b>【讲解】</b>${renderRich(q.explanation||'（本题暂无解析）')}</div>
     <div style="height:14px"></div>`;
 }
 

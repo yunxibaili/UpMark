@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import '../main.dart';
 import '../models/models.dart';
 import '../services/quiz_logic.dart';
+import '../widgets/rich_text.dart';
 
 class QuizScreen extends StatefulWidget {
   final String title;
@@ -147,10 +148,12 @@ class _QuizScreenState extends State<QuizScreen> {
                             const SizedBox.shrink()))),
           ],
           const SizedBox(height: 6),
-          Text(_q.stem.isEmpty
-                  ? '（完形填空 第${_q.number}空）'
-                  : _q.stem,
-              style: const TextStyle(fontSize: 16, height: 1.5)),
+          if (_q.stem.isEmpty)
+            Text('（完形填空 第${_q.number}空）',
+                style: const TextStyle(fontSize: 16, height: 1.5))
+          else
+            richText(_q.stem,
+                style: const TextStyle(fontSize: 16, height: 1.5)),
         ])));
   }
 
@@ -204,8 +207,12 @@ class _QuizScreenState extends State<QuizScreen> {
           crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('【讲解】', style: TextStyle(fontWeight: FontWeight.bold, color: brandBlue)),
             const SizedBox(height: 6),
-            Text(_q.explanation.isEmpty ? '（本题暂无解析）' : _q.explanation,
-                style: const TextStyle(fontSize: 14.5, height: 1.55)),
+            if (_q.explanation.isEmpty)
+              const Text('（本题暂无解析）',
+                  style: TextStyle(fontSize: 14.5, height: 1.55))
+            else
+              richText(_q.explanation,
+                  style: const TextStyle(fontSize: 14.5, height: 1.55)),
           ]))),
     ];
   }
@@ -268,7 +275,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 child: Text(letter, style: TextStyle(fontSize: 13,
                     fontWeight: FontWeight.bold, color: picked ? Colors.white : brandBlue))),
             const SizedBox(width: 12),
-            Expanded(child: Text(content, style: const TextStyle(fontSize: 15))),
+            Expanded(child: richText(content, style: const TextStyle(fontSize: 15))),
             if (picked) const Icon(Icons.check_circle, color: brandBlue, size: 20),
           ]))));
   }

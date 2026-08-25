@@ -1,5 +1,5 @@
 """升本通 MD 解析器 — 自研行扫描状态机
-依据《MD格式规范v2.1》实现。白名单制：每一行要么成功解析，
+依据《MD格式规范v2.2》实现。白名单制：每一行要么成功解析，
 要么命中预定义的 E(致命)/W(跳过或警告) 规则码 —— 绝不猜测，绝不静默丢弃。
 """
 from __future__ import annotations
@@ -37,6 +37,7 @@ RE_IMAGE = re.compile(r"^\*{0,2}\s*【图】\s*(\S.*?)\s*\*{0,2}\s*$")   # v2.1:
 RE_IMAGE_EMPTY = re.compile(r"^\*{0,2}\s*【图】\s*\*{0,2}\s*$")
 RE_FENCE_OPEN = re.compile(r"^\s{0,3}(```+|~~~+)\s*(\w*)\s*$")
 RE_FENCE_CLOSE = re.compile(r"^\s{0,3}(```+|~~~+)\s*$")
+RE_DOLLAR_BLOCK = re.compile(r"^\s{0,3}\$\$")   # v2.2: $$独立公式块起始（透传文本）
 RE_BLANKS = re.compile(r"_{3,}")
 RE_SEC_SEQ = re.compile(r"^([一二三四五六七八九十]{1,3})、\s*(.*)$")
 RE_CHAPTER = re.compile(r"^第\s*([0-9]{1,3}|[一两二三四五六七八九十]{1,3})\s*章\s*(.*)$")
@@ -592,8 +593,9 @@ class StrictMDParser:
 
     def _lookahead_says_question(self, lines: List[str], idx_one_based: int) -> bool:
         """从候选行向后找结构性证据（选项/答案/讲解/材料/分区/分隔线/围栏/其他题干）。
-        遇到代码块时跳过其内部内容继续扫描（代码块本身即新题的强证据）。"""
+        遇到代码块或$$公式块时跳过其内部内容继续扫描（v2.2：$$块曾因含无证据行导致吞题/E130）。"""
         in_code = False
+        in_dollar = False
         for j in range(idx_one_based, len(lines)):      # lines[j] 为第 j+1 行
             if j == idx_one_based - 1:
                 continue                                 # 跳过候选行自身
@@ -606,9 +608,17 @@ class StrictMDParser:
                     in_code = False
                     return True                          # 围栏正常闭合=结构证据
                 continue
+            if in_dollar:
+                if t.endswith("$$"):
+                    in_dollar = False                    # $$块闭合，继续找证据
+                continue
             if RE_FENCE_OPEN.match(raw_j):
                 in_code = True
                 continue
+            if RE_DOLLAR_BLOCK.match(raw_j):
+                if not (t.endswith("$$") and len(t) > 4):
+                    in_dollar = True                     # 多行块：等待闭合行
+                continue                                 # 单行块直接跳过
             return bool(
                 RE_OPTION.match(raw_j) or RE_ANS_B_VAL.match(t)
                 or RE_ANS_B_EMPTY.match(t) or RE_ANS_PLAIN.match(t)

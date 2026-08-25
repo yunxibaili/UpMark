@@ -76,7 +76,7 @@ def admin_import(req: ImportRequest, db: Session = Depends(get_db)):
             raise HTTPException(400, detail={
                 "message": "文件未通过格式校验，已拒绝入库",
                 "errors": [result["fatal"]],
-                "hint": "请修正后重新导入；完整规则见《MD格式规范v2.1》",
+                "hint": "请修正后重新导入；完整规则见《MD格式规范v2.2》",
             })
         log = ImportLog(file_path=os.path.abspath(path), status=status,
                         report_json=json.dumps(result, ensure_ascii=False))
@@ -244,7 +244,7 @@ async def admin_upload(request: Request, name: str = Query(...),
             raise HTTPException(400, detail={
                 "message": "文件未通过格式校验，已拒绝入库",
                 "errors": [result["fatal"]],
-                "hint": "请修正后重新拖入；完整规则见《MD格式规范v2.1》",
+                "hint": "请修正后重新拖入；完整规则见《MD格式规范v2.2》",
             })
         summary = {
             "files_total": 1,
