@@ -14,6 +14,19 @@
 
 ---
 
+## T-115 Ponytail精简重构
+- [x] 体积清理：build/.dart_tool/.gradle 删除（-2257MB），.gitignore 补行；全项目 2.26GB→5.7MB
+- [x] 删4个零引用依赖（riverpod/fl_chart/screenutil/path_provider）；flutter_math_fork 本就不在
+- [x] DB+静态图迁 %LOCALAPPDATA%/UpMark/（SBT_DATA钩子+APP_DATA_DIR单一数据源）；api_contract_v1归档archive/
+- [x] rich_text 迁 lib/core/rich_text_renderer.dart；knowledge保留markdown_widget；不建DAO/不拆Screen
+- [x] 全量API测试14项（health/bind/sync/静态图/marked/admin/quiz/模板v2.2/导入幂等/进度往返去重/清理）
+- [x] pytest 46/46 + Flutter analyze零问题 + 41/41 + APK构建部署MuMu
+- [x] MuMu实机：重同步12科目全量 + 压力测试章lens图渲染 + LaTeX蓝斜体
+- [x] 快照刷新 upmark_749.db + README恢复指令更新
+- 验收人：用户（授权代验） 日期：2026-08-25
+
+---
+
 ## 模板（复制使用）
 
 ```

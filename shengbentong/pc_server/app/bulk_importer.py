@@ -22,13 +22,13 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from .models.database import (
-    Chapter, ImportLog, Question, Subject, engine, init_db, SessionLocal,
+    APP_DATA_DIR, Chapter, ImportLog, Question, Subject, engine, init_db,
+    SessionLocal,
 )
 from .parser.models import FileRejected
 from .parser.strict_parser import StrictMDParser, load_source
 
-STATIC_IMAGES = os.path.normpath(os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "static", "images"))
+STATIC_IMAGES = os.path.normpath(os.path.join(APP_DATA_DIR, "static", "images"))  # T-115: 复用APP_DATA_DIR
 
 
 def resolve_image(rel: Optional[str], md_path: str,

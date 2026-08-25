@@ -14,7 +14,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column,
                             relationship, sessionmaker)
 
-DB_PATH = os.environ.get("SBT_DB", "shengbentong.db")
+# T-115: 运行时数据归位 %LOCALAPPDATA%/UpMark/（源码树只留代码）
+APP_DATA_DIR = os.environ.get(
+    "SBT_DATA",
+    os.path.join(os.environ.get("LOCALAPPDATA", os.path.dirname(os.path.abspath(__file__))), "UpMark"))
+os.makedirs(APP_DATA_DIR, exist_ok=True)
+DB_PATH = os.environ.get("SBT_DB", os.path.join(APP_DATA_DIR, "shengbentong.db"))
 
 engine = create_engine(f"sqlite:///{DB_PATH}", echo=False, future=True)
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)

@@ -38,9 +38,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# v2.1: 题目图像静态目录（bulk_importer拷入 /static/images）
-os.makedirs(_STATIC_DIR, exist_ok=True)   # StaticFiles要求目录在挂载前已存在
-app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
+# v2.1/T-115: 题目图像在 %LOCALAPPDATA%/UpMark/static/images（bulk_importer拷入）
+from .bulk_importer import STATIC_IMAGES as _IMAGES_DIR
+os.makedirs(_IMAGES_DIR, exist_ok=True)   # StaticFiles要求目录在挂载前已存在
+os.makedirs(_STATIC_DIR, exist_ok=True)
+app.mount("/static/images", StaticFiles(directory=_IMAGES_DIR), name="images")  # 具体路径先注册
+app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")          # web资源(marked.min.js)
 
 app.include_router(sync.router)
 app.include_router(admin.router)

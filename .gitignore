@@ -6,11 +6,8 @@ shengbentong/pc_server/scripts/
 db_snapshot/
 .agents/
 .local/
-
 # ---- 归档旧文档：仅本地保留，不上传 ----
 shengbentong/docs/归档/
-db_snapshot/
-
 # ---- Python 产物 ----
 __pycache__/
 *.py[cod]
@@ -19,20 +16,26 @@ __pycache__/
 htmlcov/
 *.egg-info/
 venv/
-
 # ---- 数据库与运行时文件 ----
 *.db
 *.sqlite3
-
 # ---- 编辑器/系统 ----
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
-
 skills-lock.json
-.local/
 build/
 **/build/
 **/__pycache__/
 **/*.pyc
+archive/
+.dart_tool/
+**/.dart_tool/
+**/.gradle/
+
+# ---- 归档与构建缓存（T-115）----
+archive/
+.dart_tool/
+**/.dart_tool/
+**/.gradle/

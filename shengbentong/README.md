@@ -126,5 +126,5 @@ http://localhost:8000/docs
 **DB快照恢复**：联调数据弄乱后，用 `db_snapshot/` 内备份覆盖 `pc_server/shengbentong.db` 即可回到675题初始态（含图像/LaTeX实验章节）。
 
 ```powershell
-Copy-Item db_snapshot\upmark_675.db shengbentong\pc_server\shengbentong.db -Force
+Copy-Item db_snapshot\upmark_749.db %LOCALAPPDATA%\UpMark\shengbentong.db -Force（T-115起DB在LOCALAPPDATA）
 ```
