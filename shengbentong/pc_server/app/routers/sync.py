@@ -16,7 +16,14 @@ from ..schemas.schemas import ProgressBatch, ProgressItem
 
 router = APIRouter(prefix="/api", tags=["sync"])
 SCHEMA_VERSION = 2   # v2: Question新增image字段（/static/images/… 相对URL）
-DATA_VERSION = "20240824-1"   # 题库数据版本：每次导入后由bulk_importer侧更新
+def _data_version(db):
+    """题库数据版本：从DB状态动态推导（科目-章-题数-最大题ID）。
+    导入增删自动变化；幂等重导（同内容）不变——App据此判断是否提示更新。"""
+    s = db.query(func.count(Subject.id)).scalar() or 0
+    c = db.query(func.count(Chapter.id)).scalar() or 0
+    q = db.query(func.count(Question.id)).scalar() or 0
+    m = db.query(func.max(Question.id)).scalar() or 0
+    return f"{s}-{c}-{q}-{m}"
 
 
 def _question_dict(q: Question) -> dict:
@@ -65,8 +72,8 @@ def _counts(db: Session) -> dict:
 
 @router.get("/health")
 def health(db: Session = Depends(get_db)):
-    return {"status": "ok", "app": "shengbentong",
-            "schema_version": SCHEMA_VERSION, "stats": _counts(db)}
+    return {"status": "ok", "app": "shengbentong", "schema_version": SCHEMA_VERSION,
+            "data_version": _data_version(db), "stats": _counts(db)}
 
 
 @router.post("/bind")
@@ -81,7 +88,7 @@ def sync_all(db: Session = Depends(get_db)):
     subjects = db.query(Subject).order_by(Subject.name).all()
     return {
         "schema_version": SCHEMA_VERSION,
-        "data_version": DATA_VERSION,
+        "data_version": _data_version(db),
         "exported_at": datetime.now().isoformat(timespec="seconds"),
         "subjects": [_subject_dict(s, deep=True) for s in subjects],
     }
