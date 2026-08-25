@@ -1,6 +1,8 @@
 /// ApiService — Dio 封装。baseUrl 从 SharedPreferences 读取。
 library;
 
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -108,9 +110,18 @@ class ApiService {
     }
   }
 
-  /// v2.1: 下载题目图像到本地缓存（同步阶段调用，保证离线可渲染）
+  /// v2.1: 下载题目图像到本地缓存（同步阶段调用，保证离线可渲染）。
+  /// T-112: 原子写入——先下 .tmp 再改名，杀进程/断网不会留下半张图。
   Future<void> downloadTo(String urlPath, String savePath) async {
-    await _dio.download(urlPath, savePath);
+    final tmp = '$savePath.tmp';
+    await _dio.download(urlPath, tmp);
+    final tmpFile = File(tmp);
+    if (!await tmpFile.exists()) {
+      throw StateError('下载未产生文件: $urlPath');
+    }
+    final target = File(savePath);
+    if (await target.exists()) await target.delete();
+    await tmpFile.rename(savePath);
   }
 }
 
