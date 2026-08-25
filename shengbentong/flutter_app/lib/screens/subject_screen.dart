@@ -67,14 +67,26 @@ class _SubjectScreenState extends State<SubjectScreen> {
     try {
       final api = await createApiFromPrefs();
       final db = _db ?? await DbService.open();
+      final sp = await SharedPreferences.getInstance();
+      final versionBefore = sp.getString(ApiConfig.dataVersionKey);
       final r = await SyncService(api: api, db: db).run((s) {
         if (mounted) setState(() => _offlineHint = s);
       });
       await _load();
       await _checkUpdate();
-      messenger.showSnackBar(SnackBar(
-          content: Text('更新完成：${r.questions}题'),
-          backgroundColor: okGreen));
+      final versionAfter = sp.getString(ApiConfig.dataVersionKey);
+      if (mounted) {
+        if (versionAfter != versionBefore) {
+          messenger.showSnackBar(SnackBar(
+              content: Text('更新完成：${r.questions}题'),
+              backgroundColor: okGreen));
+        } else {
+          messenger.showSnackBar(const SnackBar(
+              duration: Duration(seconds: 1),
+              content: Text('题库已是最新'),
+              backgroundColor: Colors.grey));
+        }
+      }
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => _offlineHint = '${e.message} —— 请检查PC是否启动');
