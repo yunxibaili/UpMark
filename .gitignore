@@ -34,6 +34,7 @@ archive/
 **/.dart_tool/
 **/.gradle/
 
+shengbentong/pc_server/static/images/
 # ---- 归档与构建缓存（T-115）----
 archive/
 .dart_tool/
