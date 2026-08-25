@@ -123,7 +123,7 @@ void main() {
   });
 
   group('SyncPayload 解析', () {
-    test('字段完整映射（契约v1）', () {
+    test('字段完整映射（契约v2）', () {
       final p = SyncPayload.fromJson(sampleSync);
       expect(p.schemaVersion, 1);
       expect(p.dataVersion, '20240824-1');

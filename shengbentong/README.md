@@ -67,7 +67,7 @@ D:\dev\upmark\
 | T-104 刷题闭环 | ✅ 29/29测试绿，MuMu刷题/材料/多选全验证 |
 | T-105 进阶 | ✅ 错题本/收藏/统计/两端同步验证通过 |
 | T-107 PC网页刷题 | ✅ 四题型+材料块+进度直写，拖拽导入 |
-| T-108 图像题 | ✅ 【图】全链路+规范v2.1+契约v2，MuMu验收通过；考研真题图像题实战验证（6题/6图） |
+| T-108 图像题 | ✅ 【图】全链路+规范v2.2+契约v2，MuMu验收通过；考研真题图像题实战验证（6题/6图） |
 | T-106 发布 | 🎯 进行中 |
 
 ## 6. 开发路线
@@ -120,8 +120,8 @@ http://localhost:8000/api/admin/page
 http://localhost:8000/docs
 ```
 
-**DB快照恢复**：联调数据弄乱后，用 `db_snapshot/` 内备份覆盖 `pc_server/shengbentong.db` 即可回到661题初始态。
+**DB快照恢复**：联调数据弄乱后，用 `db_snapshot/` 内备份覆盖 `pc_server/shengbentong.db` 即可回到675题初始态（含图像/LaTeX实验章节）。
 
 ```powershell
-Copy-Item db_snapshot\upmark_661.db shengbentong\pc_server\shengbentong.db -Force
+Copy-Item db_snapshot\upmark_675.db shengbentong\pc_server\shengbentong.db -Force
 ```

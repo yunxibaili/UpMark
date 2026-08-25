@@ -1,6 +1,6 @@
 # 升本通 API 契约 v1（Agent 2 后端 / Agent 3 前端 共同遵守）
 
-> 数据结构权威定义：《MD格式规范v2.0》第十节 JSON Schema。本文只定义传输契约。
+> 数据结构权威定义：《MD格式规范v2.2》第十一节 JSON Schema；机器可读契约：仓库根 api_contract_v2.json。本文只定义传输契约。
 > 所有响应均为 UTF-8 JSON；错误统一走 HTTP 状态码 + body.error 描述。
 
 ## 0. 通用约定
@@ -76,14 +76,14 @@ App端处理：整体覆盖写入本地sqflite；进度记录不在此接口。
 
 ```
 POST /api/admin/import           multipart: path=文件夹或文件路径(服务器本地)
-                                 → {"log_id":7,"ok":true,"report":{...规范v2.0§9导入报告...}}
+                                 → {"log_id":7,"ok":true,"report":{...规范v2.2§10导入报告...}}
 GET  /api/admin/import/{log_id}  → {"log_id":7,"file_path":"…","status":"success","report":{…}}
 GET  /api/admin/stats            → {"subjects":[{"name":"C语言","chapters":10,"questions":520,
                                               "by_type":{"single_choice":320,...}}]}
 GET  /api/admin/template?kind=md|prompt → text/plain 官方模板
 ```
 
-导入报告 report 结构（节选，完整见《MD格式规范v2.0》第九节）：
+导入报告 report 结构（节选，完整见《MD格式规范v2.2》第十节）：
 ```json
 {"imported": 38, "skippedQuestions": [{"line":57,"code":"W302","reason":"…","stemPreview":"…"}],
  "skippedSections": [{"header":"四、简答题","startLine":190,"endLine":224,"code":"W205"}],

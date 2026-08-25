@@ -1,4 +1,4 @@
-/// 数据模型 —— 与仓库根目录 api_contract_v1.json 严格对齐
+/// 数据模型 —— 与仓库根目录 api_contract_v2.json 严格对齐
 library;
 
 import 'dart:convert';
