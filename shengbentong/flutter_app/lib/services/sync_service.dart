@@ -85,6 +85,7 @@ class SyncService {
   }
 
   /// v2.1: 下载所有题目图像到 `databases/upmark_images/`。
+  /// 原子写盘（T-112）：先下 .tmp，完整后改名——中断不留半张图；同步开始清理历史 .tmp。
   /// 成功→DB改写为本地绝对路径；失败→置null（不阻断同步）。返回成功数。
   Future<int> _downloadImages(
       SyncPayload payload, void Function(String stage) onStage) async {
@@ -104,6 +105,14 @@ class SyncService {
     final dir = p.join(await getDatabasesPath(), 'upmark_images');
     await Directory(dir).create(recursive: true);
 
+    // T-112: 清理历史残留的 .tmp（上次同步被杀进程/断网留下的半张图）
+    await for (final e in Directory(dir).list()) {
+      if (e is File && e.path.endsWith('.tmp')) {
+        try { await e.delete(); } catch (_) {/* 忽略清理失败 */}
+      }
+    }
+    await _cleanTmpFiles(dir);          // 上次中断遗留的半成品直接忽略/清除
+
     final okMap = <String, String>{};
     final failed = <String>{};
     var i = 0;
@@ -112,16 +121,37 @@ class SyncService {
       onStage('正在下载题目图像（$i/${remoteToQ.length}）…');
       final name = remote.split('/').last;
       final save = p.join(dir, name);
+      final tmp = '$save.tmp';
       try {
-        await api.downloadTo(remote, save);
+        await api.downloadTo(remote, tmp);
+        final f = File(tmp);
+        final dst = File(save);
+        if (await dst.exists()) await dst.delete();   // Windows下rename不覆盖
+        await f.rename(save);
         okMap[remote] = save;
       } catch (_) {
         failed.add(remote);          // 单图失败不阻断同步
+        try {
+          final t = File(tmp);
+          if (await t.exists()) await t.delete();
+        } catch (_) {/* 清理失败忽略 */}
       }
     }
     await db.rewriteQuestionImages(okMap);
     if (failed.isNotEmpty) await db.nullifyQuestionImages(failed);
     return okMap.length;
+  }
+
+  static Future<void> _cleanTmpFiles(String dir) async {
+    try {
+      await for (final e in Directory(dir).list()) {
+        if (e is File && e.path.endsWith('.tmp')) {
+          try {
+            await e.delete();
+          } catch (_) {/* 占用等场景忽略，渲染只认正式名 */}
+        }
+      }
+    } catch (_) {}
   }
 
   /// 对比服务器与本地 data_version；从未同步或版本不同 → true；离线返回 false（静默）
