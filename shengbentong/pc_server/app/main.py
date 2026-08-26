@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .models.database import init_db
@@ -44,6 +45,12 @@ os.makedirs(_IMAGES_DIR, exist_ok=True)   # StaticFiles要求目录在挂载前�
 os.makedirs(_STATIC_DIR, exist_ok=True)
 app.mount("/static/images", StaticFiles(directory=_IMAGES_DIR), name="images")  # 具体路径先注册
 app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")          # web资源(marked.min.js)
+
+@app.get("/", include_in_schema=False)
+def root():
+    """T-119: 浏览器输 localhost:8000 直达管理台。"""
+    return RedirectResponse(url="/api/admin/page", status_code=302)
+
 
 app.include_router(sync.router)
 app.include_router(admin.router)

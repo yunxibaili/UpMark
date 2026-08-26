@@ -71,6 +71,10 @@ D:\dev\upmark\
 | T-112 五项加固 | ✅ 原子下载/data_version核查/自动备份/字体回退/CHECKLIST |
 | T-113 提示词v1.3+引用大扫除 | ✅ 五补丁+过期引用清零+快照675 |
 | T-114 提示词验证 | ✅ 三轮收敛v1.3最优 + 网络真题转化3科目（13文件75题全绿） |
+| T-115 Ponytail精简 | ✅ 体积2.26GB→5.7MB + DB/静态图迁LOCALAPPDATA + 14项全量测试 |
+| T-116 data_version动态化 | ✅ 死常量→DB状态推导，MuMu弱提示横幅实测弹出 |
+| T-117 全量测试 | ✅ 清零→双通道6科97题→毒化10点全拦截→报告（docs/测试报告_T-117.md） |
+| T-118 单科目删除双端 | ✅ PC DELETE端点(级联+孤儿图) + App长按删除（MuMu实测785题双端一致） |
 | T-106 发布 | 🎯 进行中 |
 
 ## 6. 开发路线
@@ -97,6 +101,8 @@ D:\dev\upmark\
 
 ```bash
 # 健康检查（应返回 status:ok 与 stats）
+# 浏览器直达管理台（GET / 302重定向，T-119）
+start http://localhost:8000/
 curl http://localhost:8000/api/health
 
 # 绑定探测

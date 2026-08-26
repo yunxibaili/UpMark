@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import socket
 import tempfile
 import zipfile
 
@@ -273,6 +274,20 @@ async def admin_upload(request: Request, name: str = Query(...),
                 "report": summary}
     finally:
         shutil.rmtree(tmp_root, ignore_errors=True)
+
+
+@router.get("/lan-ip")
+def lan_ip():
+    """T-119: 服务端局域网IPv4（UDP connect 不发包，仅取路由出口地址）。"""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except OSError:
+        ip = "127.0.0.1"
+    finally:
+        s.close()
+    return {"ip": ip}
 
 
 @router.delete("/subject/{subject_id}")

@@ -1,4 +1,4 @@
-/// 绑定PC：输入IP+端口 → 前端校验 → bind探测 → 全量同步 → 进科目列表
+/// 绑定PC：扫描局域网/历史记录/手动输入 三合一 → 探测 → 全量同步 → 进科目列表
 library;
 
 import 'package:flutter/material.dart';
@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
 import '../services/api_service.dart';
 import '../services/db_service.dart';
+import '../services/lan_scanner.dart';
 import '../services/sync_service.dart';
 
 class BindScreen extends StatefulWidget {
@@ -22,6 +23,12 @@ class _BindScreenState extends State<BindScreen> {
   String? _error;
   bool _busy = false;
   String _stage = '';
+  List<String> _history = [];
+  List<String> _scanHits = [];
+  bool _scanning = false;
+  String _scanStatus = '';
+
+  static const _historyKey = 'lan_history';
 
   static final _ipRegex =
       RegExp(r'^(\d{1,3}\.){3}\d{1,3}$|^([a-fA-F0-9:]+:+[a-fA-F0-9]+)$');
@@ -33,7 +40,46 @@ class _BindScreenState extends State<BindScreen> {
       final saved = sp.getString(ApiConfig.ipKey);
       if (saved != null && mounted) _ip.text = saved;
     });
+    _loadHistory();
   }
+
+  Future<void> _loadHistory() async {
+    final sp = await SharedPreferences.getInstance();
+    if (mounted) setState(() => _history = sp.getStringList(_historyKey) ?? []);
+  }
+
+  Future<void> _saveHistory(String ip) async {
+    final sp = await SharedPreferences.getInstance();
+    final list = (sp.getStringList(_historyKey) ?? []).toList()
+      ..remove(ip)
+      ..insert(0, ip);
+    if (list.length > 5) list.removeRange(5, list.length);
+    await sp.setStringList(_historyKey, list);
+    if (mounted) setState(() => _history = list);
+  }
+
+  /// T-119: /24 局域网扫描（探测 /api/health 含 shengbentong）
+  Future<void> _scan() async {
+    final port = _port.text.trim();
+    setState(() {
+      _scanning = true;
+      _scanHits = [];
+      _scanStatus = '正在扫描本机网段…';
+    });
+    final hits = await scanLanForServer(
+        port: port,
+        onProgress: (done, total) {
+          if (mounted) setState(() => _scanStatus = '已探测 $done/$total');
+        });
+    if (!mounted) return;
+    setState(() {
+      _scanHits = hits;
+      _scanning = false;
+      _scanStatus = hits.isEmpty ? '未发现升本通服务端，可尝试手动输入IP' : '发现 ${hits.length} 台服务端，点击填充';
+    });
+  }
+
+  void _fillIp(String ip) => setState(() => _ip.text = ip);
 
   String? _validateLocal() {
     final ip = _ip.text.trim();
@@ -75,6 +121,8 @@ class _BindScreenState extends State<BindScreen> {
               '同步完成：${result.subjects}科目 / ${result.questions}题 / '
               '${result.elapsed.inMilliseconds}ms'),
           backgroundColor: okGreen));
+      await _saveHistory(ip);
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/subjects');
     } on ApiException catch (e) {
       setState(() => _error = e.message);
@@ -124,6 +172,55 @@ class _BindScreenState extends State<BindScreen> {
                   decoration: const InputDecoration(
                       labelText: '端口', border: OutlineInputBorder()),
                 ),
+                const SizedBox(height: 14),
+                Row(children: [
+                  Expanded(
+                      child: OutlinedButton.icon(
+                          onPressed: _scanning ? null : _scan,
+                          icon: _scanning
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2))
+                              : const Icon(Icons.wifi_find),
+                          label: Text(_scanning ? '扫描中…' : '扫描局域网'))),
+                  if (_scanStatus.isNotEmpty) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                        child: Text(_scanStatus,
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.grey.shade600))),
+                  ],
+                ]),
+                if (_scanHits.isNotEmpty)
+                  Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Wrap(
+                          spacing: 8,
+                          children: [
+                            for (final hit in _scanHits)
+                              ActionChip(
+                                  avatar: const Icon(Icons.dns,
+                                      size: 16, color: Colors.green),
+                                  label: Text(hit),
+                                  onPressed: () => _fillIp(hit)),
+                          ])),
+                if (_history.isNotEmpty)
+                  Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Wrap(
+                          spacing: 8,
+                          children: [
+                            const Text('历史:',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey)),
+                            for (final h in _history)
+                              ActionChip(
+                                  label: Text(h,
+                                      style: const TextStyle(fontSize: 12)),
+                                  onPressed: () => _fillIp(h)),
+                          ])),
                 const SizedBox(height: 20),
                 if (_busy)
                   Column(children: [
