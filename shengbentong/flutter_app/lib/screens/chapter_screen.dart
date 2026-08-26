@@ -9,6 +9,7 @@ import '../services/db_service.dart';
 import '../services/quiz_logic.dart';
 import 'exam_screen.dart';
 import 'knowledge_screen.dart';
+import 'note_editor_screen.dart';
 import 'quiz_screen.dart';
 
 class ChapterScreen extends StatefulWidget {
@@ -47,6 +48,16 @@ class _ChapterScreenState extends State<ChapterScreen> {
     ];
   }
 
+  /// T-124: 打开/新建当前题目的笔记（编辑器自行落库，无需刷新刷题状态）
+  Future<void> _openQuestionNote(int questionId, DbService db) async {
+    final dir = await getDefaultDatabasesDirectory();
+    final existing = await db.noteOfQuestion(questionId);
+    if (!mounted) return;
+    await Navigator.push(context, MaterialPageRoute(
+        builder: (_) => NoteEditorScreen(db: db, databasesDir: dir,
+            initial: existing, questionId: questionId)));
+  }
+
   Future<void> _openQuiz(Chapter c) async {
     final db = await DbService.open();
     final rows = await db.rawQuestionsOf(c.id);
@@ -74,7 +85,8 @@ class _ChapterScreenState extends State<ChapterScreen> {
               await db.setFavorite(qid, target);
               target ? favs.add(qid) : favs.remove(qid);
               return target;
-            })));
+            },
+            onOpenNote: (qid) => _openQuestionNote(qid, db))));
     if (!mounted || savedCount == 0) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('本章已作答 $savedCount 题，进度保存在本地；联网后可在「我的统计」上传PC'),

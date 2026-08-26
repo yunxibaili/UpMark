@@ -10,6 +10,7 @@ import '../services/db_service.dart';
 import '../services/sync_service.dart';
 import 'chapter_screen.dart';
 import 'favorites_screen.dart';
+import 'notes_home_screen.dart';
 import 'stats_screen.dart';
 import 'wrong_book_screen.dart';
 
@@ -24,6 +25,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
   DbService? _db;
   List<SubjectStat> _stats = [];
   Map<String, Object?> _summary = const {};
+  int _noteCount = 0;
   bool _loading = true;
   bool _syncing = false;
   String? _offlineHint;
@@ -40,11 +42,13 @@ class _SubjectScreenState extends State<SubjectScreen> {
     final db = await DbService.open();
     final stats = await db.subjectsWithStats();
     final summary = await db.statsSummary();
+    final noteCount = await db.liveNoteCount();
     if (!mounted) return;
     setState(() {
       _db = db;
       _stats = stats;
       _summary = summary;
+      _noteCount = noteCount;
       _loading = false;
     });
   }
@@ -214,17 +218,24 @@ class _SubjectScreenState extends State<SubjectScreen> {
               MaterialPageRoute(builder: (_) => const WrongBookScreen()));
           _load();
         }),
-        const SizedBox(width: 10),
+        const SizedBox(width: 8),
         _entryCard(Icons.bookmark_border, '收藏夹', '${_summary['favorites'] ?? 0}',
             brandBlue, () async {
           await Navigator.push(context,
               MaterialPageRoute(builder: (_) => const FavoritesScreen()));
           _load();
         }),
-        const SizedBox(width: 10),
-        _entryCard(Icons.insights, '我的统计', '$pending', Colors.orange, () async {
+        const SizedBox(width: 8),
+        _entryCard(Icons.insights, '统计', '$pending', Colors.orange, () async {
           await Navigator.push(context,
               MaterialPageRoute(builder: (_) => const StatsScreen()));
+          _load();
+        }),
+        const SizedBox(width: 8),
+        _entryCard(Icons.sticky_note_2_outlined, '笔记', '$_noteCount',
+            Colors.deepPurple, () async {
+          await Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const NotesHomeScreen()));
           _load();
         }),
       ]),

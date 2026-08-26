@@ -25,13 +25,17 @@ class QuizScreen extends StatefulWidget {
   /// 收藏切换回调：返回切换后的新状态
   final Future<bool> Function(int questionId)? onToggleFavorite;
 
+  /// T-124: 打开当前题目的笔记（null=不显示入口；调用方负责编辑器与落库）
+  final Future<void> Function(int questionId)? onOpenNote;
+
   const QuizScreen(
       {super.key,
       required this.title,
       required this.questions,
       this.initialFavorites = const {},
       this.onAnswered,
-      this.onToggleFavorite});
+      this.onToggleFavorite,
+      this.onOpenNote});
 
   @override
   State<QuizScreen> createState() => _QuizScreenState();
@@ -92,6 +96,11 @@ class _QuizScreenState extends State<QuizScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold)),
           backgroundColor: brandBlue, foregroundColor: Colors.white,
           actions: [
+            if (widget.onOpenNote != null)
+              IconButton(
+                  tooltip: '本题笔记',
+                  onPressed: () => widget.onOpenNote?.call(_q.id),
+                  icon: const Icon(Icons.edit_note)),
             IconButton(
                 tooltip: _isFav ? '取消收藏' : '收藏本题',
                 onPressed: _toggleFavorite,
