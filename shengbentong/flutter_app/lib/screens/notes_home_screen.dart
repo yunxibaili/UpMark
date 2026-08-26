@@ -144,66 +144,95 @@ class _NotesHomeScreenState extends State<NotesHomeScreen> {
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView.separated(
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 4),
                       itemCount: _notes.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => Divider(
+                          height: 1,
+                          thickness: 0.6,
+                          indent: 52,
+                          color: Colors.grey.shade300),
                       itemBuilder: (_, i) {
                         final n = _notes[i];
-                        return Card(
-                          elevation: 1,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                          child: ListTile(
-                              key: Key('note_item_${n.id}'),
-                              onTap: () => _openEditor(initial: n),
-                              onLongPress: () => _deleteNote(n),
-                              leading: Icon(
-                                  n.questionId == null
-                                      ? Icons.sticky_note_2_outlined
-                                      : Icons.quiz_outlined,
-                                  color: brandBlue),
-                              title: Text(
-                                  n.title.isEmpty ? '（无标题）' : n.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
-                              subtitle: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(_firstLine(n.contentMd),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                            fontSize: 12.5,
-                                            color: Colors.grey.shade600)),
-                                    const SizedBox(height: 2),
-                                    Row(children: [
-                                      if (n.questionId != null)
-                                        Padding(
-                                            padding: const EdgeInsets.only(
-                                                right: 8),
-                                            child: Container(
-                                                padding: const EdgeInsets
-                                                    .symmetric(
-                                                    horizontal: 6,
-                                                    vertical: 1),
-                                                decoration: BoxDecoration(
-                                                    color: brandBlue
-                                                        .withValues(
-                                                            alpha: .12),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            6)),
-                                                child: const Text('题目笔记',
-                                                    style: TextStyle(
-                                                        fontSize: 10.5,
-                                                        color: brandBlue)))),
-                                      Text(_fmtTime(n.updatedAt),
-                                          style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.grey.shade500)),
-                                    ]),
-                                  ])));
+                        return InkWell(
+                            key: Key('note_item_${n.id}'),
+                            onTap: () => _openEditor(initial: n),
+                            onLongPress: () => _deleteNote(n),
+                            child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 11),
+                                child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Padding(
+                                          padding: const EdgeInsets.only(
+                                              top: 2, right: 12),
+                                          child: Icon(
+                                              n.questionId == null
+                                                  ? Icons.sticky_note_2_outlined
+                                                  : Icons.quiz_outlined,
+                                              size: 20,
+                                              color: brandBlue
+                                                  .withValues(alpha: .75))),
+                                      Expanded(
+                                          child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                            Text(
+                                                n.title.isEmpty
+                                                    ? '（无标题）'
+                                                    : n.title,
+                                                maxLines: 1,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                    fontSize: 15.5,
+                                                    fontWeight:
+                                                        FontWeight.w600)),
+                                            const SizedBox(height: 3),
+                                            Text(_firstLine(n.contentMd),
+                                                maxLines: 1,
+                                                overflow:
+                                                    TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                    fontSize: 13,
+                                                    color: Colors
+                                                        .grey.shade600)),
+                                            const SizedBox(height: 4),
+                                            Row(children: [
+                                              if (n.questionId != null)
+                                                Padding(
+                                                    padding: const EdgeInsets
+                                                        .only(right: 8),
+                                                    child: Container(
+                                                        padding: const EdgeInsets
+                                                            .symmetric(
+                                                            horizontal: 6,
+                                                            vertical: 1),
+                                                        decoration: BoxDecoration(
+                                                            color: brandBlue
+                                                                .withValues(
+                                                                    alpha: .1),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        6)),
+                                                        child: const Text(
+                                                            '题目笔记',
+                                                            style: TextStyle(
+                                                                fontSize: 10.5,
+                                                                color:
+                                                                    brandBlue)))),
+                                              Text(_fmtTime(n.updatedAt),
+                                                  style: TextStyle(
+                                                      fontSize: 11,
+                                                      color: Colors
+                                                          .grey.shade500)),
+                                            ]),
+                                          ])),
+                                    ])));
                       })),
     );
   }

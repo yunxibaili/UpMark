@@ -113,19 +113,24 @@ Widget noteImageWidget(String url, Map<String, String> imageMap) {
 }
 
 /// 笔记正文渲染视图。imageMap 由调用方经 resolveNoteImageMap 预解析。
+/// [selectable]=false 时不包 SelectionArea（Live Preview 块需要把 tap
+/// 让给"点击进入编辑"手势，避免选择器抢占手势竞技场）。
 class NoteMarkdownView extends StatelessWidget {
   final String contentMd;
   final Map<String, String> imageMap;
+  final bool selectable;
 
   const NoteMarkdownView({super.key,
       required this.contentMd,
-      this.imageMap = const {}});
+      this.imageMap = const {},
+      this.selectable = true});
 
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return MarkdownBlock(
       data: contentMd,
+      selectable: selectable,
       generator: MarkdownGenerator(inlineSyntaxList: [_LatexSyntax()],
           generators: [
             SpanNodeGeneratorWithTag(
@@ -134,9 +139,19 @@ class NoteMarkdownView extends StatelessWidget {
                     _LatexNode(e.attributes, e.textContent, config)),
           ]),
       config: MarkdownConfig(configs: [
+        // T-126: 阅读排版精修（Obsidian 式层级与呼吸感）
+        const H1Config(style: TextStyle(
+            fontSize: 21, height: 1.4, fontWeight: FontWeight.w700)),
+        const H2Config(style: TextStyle(
+            fontSize: 18.5, height: 1.4, fontWeight: FontWeight.w700)),
+        const H3Config(style: TextStyle(
+            fontSize: 16.5, height: 1.45, fontWeight: FontWeight.w600)),
+        const H4Config(style: TextStyle(
+            fontSize: 15, height: 1.5, fontWeight: FontWeight.w600)),
+        const PConfig(textStyle: TextStyle(fontSize: 14.5, height: 1.65)),
         PreConfig(
             theme: dark ? vs2015Theme : vsTheme,
-            textStyle: const TextStyle(fontSize: 13.5,
+            textStyle: const TextStyle(fontSize: 13,
                 fontFamily: 'monospace', height: 1.45)),
         ImgConfig(builder: (url, attrs) => noteImageWidget(url, imageMap)),
       ]),

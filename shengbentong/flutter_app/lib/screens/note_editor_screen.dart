@@ -1,9 +1,11 @@
-/// NoteEditorScreen — 笔记编辑器（v2.2/T-123）。
+/// NoteEditorScreen — 笔记编辑器（v1.2/T-126 Live Preview 重构）。
 ///
-/// MD 源码编辑/预览双 Tab + 工具栏（加粗/行内代码/围栏/$公式$/$$块$/插图）。
-/// 直调 DbService 与 note_image_store 持久化（与 SubjectScreen 同风格）；
-/// 图片选择经 [pickImage] 注入便于测试（默认 ImagePicker 相册/拍照）。
+/// Obsidian 式块级所见即所得：光标所在块显示源码，其余实时渲染。
+/// AppBar 👁/✏️ 切全文档预览；工具栏贴键盘（撤销重做最前，Obsidian 默认位）；
+/// 内联大标题；直调 DbService/note_image_store 持久化。
 library;
+
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -12,6 +14,8 @@ import '../main.dart';
 import '../models/models.dart';
 import '../services/db_service.dart';
 import '../services/note_image_store.dart';
+import '../services/note_live_editor_controller.dart';
+import '../widgets/note_live_editor.dart';
 import '../widgets/note_markdown.dart';
 
 class NoteEditorScreen extends StatefulWidget {
@@ -42,66 +46,63 @@ class NoteEditorScreen extends StatefulWidget {
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
 }
 
-class _NoteEditorScreenState extends State<NoteEditorScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tab = TabController(length: 2, vsync: this);
-  late final TextEditingController _mdCtrl =
-      TextEditingController(text: widget.initial?.contentMd ?? '');
+class _NoteEditorScreenState extends State<NoteEditorScreen> {
+  late final NoteLiveEditorController _live = NoteLiveEditorController(
+      initialText: widget.initial?.contentMd ?? '');
   late final TextEditingController _titleCtrl =
       TextEditingController(text: widget.initial?.title ?? '');
   late final String _noteId = widget.initial?.id ?? newNoteHexId();
-  bool get _isQuestionNote =>
-      (widget.initial?.questionId ?? widget.questionId) != null;
+  Map<String, String> _imageMap = const {};
+  bool _previewing = false;
   bool _dirty = false;
   bool _deleted = false;
+
+  bool get _isQuestionNote =>
+      (widget.initial?.questionId ?? widget.questionId) != null;
 
   @override
   void initState() {
     super.initState();
-    _mdCtrl.addListener(() => _dirty = true);
     _titleCtrl.addListener(() => _dirty = true);
+    _live.addListener(() => _dirty = true);
+    _loadImageMap();
+  }
+
+  Future<void> _loadImageMap() async {
+    final map = await resolveNoteImageMap(
+        widget.databasesDir, widget.initial?.contentMd ?? '');
+    if (!mounted || map.isEmpty) return;
+    setState(() => _imageMap = map);
   }
 
   @override
   void dispose() {
-    _tab.dispose();
-    _mdCtrl.dispose();
+    _live.dispose();
     _titleCtrl.dispose();
     super.dispose();
   }
 
   int? get _boundQuestionId => widget.initial?.questionId ?? widget.questionId;
 
-  // ---------------------------------------------------------- 文本插入工具
+  // ------------------------------------------------------------ 工具栏动作
 
-  void _insertAtCursor(String snippet) {
-    final sel = _mdCtrl.selection;
-    final text = _mdCtrl.text;
-    final base = sel.isValid ? sel.start : text.length;
-    final extent = sel.isValid ? sel.end : text.length;
-    final next = text.replaceRange(base, extent, snippet);
-    _mdCtrl.value = TextEditingValue(
-        text: next,
-        selection: TextSelection.collapsed(offset: base + snippet.length));
-    setState(() => _dirty = true);
+  /// 工具栏动作前保证有编辑块：无则进入最后一个块
+  void _ensureEditing() {
+    if (_previewing) setState(() => _previewing = false);
+    if (!_live.isEditing) {
+      _live.beginEdit(_live.blocks.length - 1);
+    }
   }
 
-  void _wrapSelection(String prefix, String suffix,
-      {String placeholder = ''}) {
-    final sel = _mdCtrl.selection;
-    final text = _mdCtrl.text;
-    final start = sel.isValid ? sel.start : text.length;
-    final end = sel.isValid ? sel.end : text.length;
-    final inner = start == end ? placeholder : text.substring(start, end);
-    final next = text.replaceRange(start, end, '$prefix$inner$suffix');
-    _mdCtrl.value = TextEditingValue(
-        text: next,
-        selection: TextSelection.collapsed(
-            offset: start + prefix.length + inner.length));
-    setState(() => _dirty = true);
+  void _wrap(String prefix, String suffix, {String placeholder = ''}) {
+    _ensureEditing();
+    _live.wrapSelection(prefix, suffix, placeholder: placeholder);
   }
 
-  // ---------------------------------------------------------------- 插图
+  void _insert(String snippet) {
+    _ensureEditing();
+    _live.insertSnippet(snippet);
+  }
 
   Future<void> _pickAndInsertImage() async {
     final source = await showModalBottomSheet<ImageSource>(
@@ -121,7 +122,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
       final path = await picker(source);
       if (path == null || !mounted) return;
       final name = await importNoteImage(widget.databasesDir, path);
-      _insertAtCursor('![](noteimg://$name)\n');
+      setState(() => _imageMap[name] =
+          '${noteImagesDirPath(widget.databasesDir)}'
+          '${Platform.pathSeparator}$name');
+      _insert('![](noteimg://$name)\n');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -135,11 +139,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     return x?.path;
   }
 
+  void _togglePreview() {
+    if (_live.isEditing) _live.commit();
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _previewing = !_previewing);
+  }
+
   // ------------------------------------------------------------ 保存与删除
 
-  /// 返回是否实际落库（全空新笔记不落库）
   Future<bool> _save({bool silent = false}) async {
-    final content = _mdCtrl.text;
+    if (_live.isEditing) _live.commit();
+    final content = _live.text;
     final title = _titleCtrl.text.trim();
     if (widget.initial == null && content.trim().isEmpty && title.isEmpty) {
       return false;
@@ -168,7 +178,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     }
   }
 
-  /// 清理本地无任何存活笔记引用的图片文件
   Future<void> _gcLocalImages() async {
     final refs = <String>{};
     for (final n in await widget.db.allNotes()) {
@@ -224,124 +233,150 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
           foregroundColor: Colors.white,
           title: Text(_isQuestionNote ? '题目笔记' : '我的笔记',
               style: const TextStyle(fontWeight: FontWeight.bold)),
-          bottom: TabBar(
-              controller: _tab,
-              indicatorColor: Colors.white,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              tabs: const [
-                Tab(text: '编辑', icon: Icon(Icons.edit, size: 18)),
-                Tab(text: '预览', icon: Icon(Icons.visibility, size: 18)),
-              ]),
           actions: [
-            if (widget.initial != null)
-              IconButton(icon: const Icon(Icons.delete_outline),
-                  tooltip: '删除',
-                  onPressed: _delete),
-            IconButton(icon: const Icon(Icons.check),
+            IconButton(
+                key: const Key('btn_toggle_preview'),
+                tooltip: _previewing ? '编辑' : '预览',
+                onPressed: _togglePreview,
+                icon: Icon(_previewing ? Icons.edit_outlined
+                    : Icons.visibility_outlined)),
+            IconButton(
+                key: const Key('btn_save'),
                 tooltip: '保存',
-                onPressed: () => _save()),
+                onPressed: () => _save(),
+                icon: const Icon(Icons.check)),
+            if (widget.initial != null)
+              IconButton(
+                  key: const Key('btn_delete'),
+                  tooltip: '删除',
+                  onPressed: _delete,
+                  icon: const Icon(Icons.delete_outline)),
           ],
         ),
         body: Column(children: [
-          if (!_isQuestionNote)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-              child: TextField(
-                key: const Key('field_note_title'),
-                controller: _titleCtrl,
-                decoration: const InputDecoration(
-                    hintText: '笔记标题',
-                    border: OutlineInputBorder(),
-                    isDense: true),
-              ),
-            ),
-          _buildToolbar(),
-          Expanded(child: TabBarView(controller: _tab, children: [
-            _buildEditPane(),
-            _buildPreviewPane(),
-          ])),
+          Expanded(
+              child: _previewing ? _buildFullPreview() : _buildLivePane()),
+          if (!_previewing) _buildKeyboardToolbar(),
         ]),
       ),
     );
   }
 
-  Widget _buildToolbar() => Container(
+  Widget _buildLivePane() => Column(children: [
+        if (!_isQuestionNote)
+          TextField(
+              key: const Key('field_note_title'),
+              controller: _titleCtrl,
+              style: const TextStyle(
+                  fontSize: 21, fontWeight: FontWeight.w700, height: 1.3),
+              decoration: const InputDecoration(
+                  hintText: '笔记标题',
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding:
+                      EdgeInsets.fromLTRB(14, 10, 14, 4))),
+        Expanded(child: NoteLiveEditor(
+            controller: _live, imageMap: _imageMap)),
+      ]);
+
+  Widget _buildFullPreview() => Container(
+      key: const Key('pane_preview'),
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: const BorderRadius.only()),
-      child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(children: [
-            IconButton(key: const Key('btn_bold'),
-                icon: const Icon(Icons.format_bold), tooltip: '加粗',
-                onPressed: () => _wrapSelection('**', '**', placeholder: '重点')),
-            IconButton(key: const Key('btn_inline_code'),
-                icon: const Icon(Icons.code), tooltip: '行内代码',
-                onPressed: () => _wrapSelection('`', '`', placeholder: 'code')),
-            IconButton(key: const Key('btn_fence'),
-                icon: const Icon(Icons.data_object), tooltip: '代码块',
-                onPressed: () => _insertAtCursor('```c\n\n```')),
-            IconButton(key: const Key('btn_math'),
-                icon: const Text(r'$',
-                    style: TextStyle(fontSize: 18,
-                        fontWeight: FontWeight.bold)), tooltip: '行内公式',
-                onPressed: () => _wrapSelection(r'$', r'$', placeholder: 'x^2')),
-            IconButton(key: const Key('btn_math_block'),
-                icon: const Text(r'$$',
-                    style: TextStyle(fontSize: 15,
-                        fontWeight: FontWeight.bold)), tooltip: '公式块',
-                onPressed: () => _insertAtCursor('\n\$\$\n\\frac{1}{2}\n\$\$\n')),
-            IconButton(key: const Key('btn_image'),
-                icon: const Icon(Icons.image), tooltip: '插图',
-                onPressed: _pickAndInsertImage),
-          ])));
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: _live.text.trim().isEmpty
+          ? Center(child: Text('暂无内容',
+              style: TextStyle(color: Colors.grey.shade500)))
+          : SingleChildScrollView(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                  if (!_isQuestionNote && _titleCtrl.text.isNotEmpty)
+                    Padding(padding: const EdgeInsets.only(top: 10, bottom: 6),
+                        child: Text(_titleCtrl.text,
+                            style: const TextStyle(fontSize: 22,
+                                fontWeight: FontWeight.w700))),
+                  NoteMarkdownView(
+                      contentMd: _live.text, imageMap: _imageMap),
+                ])));
 
-  Widget _buildEditPane() => Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (_isQuestionNote)
-          Padding(padding: const EdgeInsets.only(bottom: 6),
-              child: Row(children: [
-                Icon(Icons.link, size: 14,
-                    color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 4),
-                Text('本笔记绑定当前题目，保存后自动备份到PC',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-              ])),
-        Expanded(child: TextField(
-            key: const Key('field_note_md'),
-            controller: _mdCtrl,
-            maxLines: null,
-            expands: true,
-            textAlignVertical: TextAlignVertical.top,
-            keyboardType: TextInputType.multiline,
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 13.5,
-                height: 1.5),
-            decoration: const InputDecoration(
-                hintText: 'Markdown 笔记…\n\n支持 **加粗**、`行内代码`、代码块、'
-                    r'$x^2$ 公式、插图',
-                border: InputBorder.none))),
-      ]));
-
-  Widget _buildPreviewPane() {
-    final md = _mdCtrl.text;
-    return Container(
-        key: const Key('pane_preview'),
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        child: md.trim().isEmpty
-            ? Center(child: Text('暂无内容',
-                style: TextStyle(color: Colors.grey.shade500)))
-            : SingleChildScrollView(
-                child: FutureBuilder<Map<String, String>>(
-                    future:
-                        resolveNoteImageMap(widget.databasesDir, md),
-                    builder: (context, snap) {
-                      return NoteMarkdownView(
-                          contentMd: md, imageMap: snap.data ?? const {});
-                    })));
+  /// 键盘上方工具栏（Obsidian 式）：随键盘滑入滑出，撤销重做最前。
+  /// ListenableBuilder 保证撤销/重做可用态随 controller 实时刷新
+  Widget _buildKeyboardToolbar() {
+    final inset = MediaQuery.viewInsetsOf(context).bottom;
+    return AnimatedPadding(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(bottom: inset),
+        child: Container(
+            key: const Key('keyboard_toolbar'),
+            width: double.infinity,
+            decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                border: Border(
+                    top: BorderSide(
+                        color: Colors.grey.shade300, width: 0.6))),
+            child: ListenableBuilder(
+                listenable: _live,
+                builder: (context, _) => SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(children: [
+                  IconButton(
+                      key: const Key('btn_undo'),
+                      tooltip: '撤销',
+                      onPressed:
+                          _live.canUndo ? () => _live.undo() : null,
+                      icon: const Icon(Icons.undo, size: 20)),
+                  IconButton(
+                      key: const Key('btn_redo'),
+                      tooltip: '重做',
+                      onPressed:
+                          _live.canRedo ? () => _live.redo() : null,
+                      icon: const Icon(Icons.redo, size: 20)),
+                  const SizedBox(width: 2),
+                  _toolBtn(key: 'btn_bold', icon: Icons.format_bold,
+                      tip: '加粗',
+                      onTap: () => _wrap('**', '**', placeholder: '重点')),
+                  _toolBtn(key: 'btn_inline_code', icon: Icons.code,
+                      tip: '行内代码',
+                      onTap: () => _wrap('`', '`', placeholder: 'code')),
+                  _toolBtn(key: 'btn_fence', icon: Icons.data_object,
+                      tip: '代码块',
+                      onTap: () => _insert('```c\n\n```')),
+                  _toolBtn(key: 'btn_math',
+                      iconWidget: const Text(r'$',
+                          style: TextStyle(fontSize: 17,
+                              fontWeight: FontWeight.bold)),
+                      tip: '行内公式',
+                      onTap: () => _wrap(r'$', r'$', placeholder: 'x^2')),
+                  _toolBtn(key: 'btn_math_block',
+                      iconWidget: const Text(r'$$',
+                          style: TextStyle(fontSize: 14,
+                              fontWeight: FontWeight.bold)),
+                      tip: '公式块',
+                      onTap: () =>
+                          _insert('\n\$\$\n\\frac{1}{2}\n\$\$\n')),
+                  _toolBtn(key: 'btn_image', icon: Icons.image,
+                      tip: '插图', onTap: _pickAndInsertImage),
+                  const SizedBox(width: 2),
+                  IconButton(
+                      key: const Key('btn_hide_keyboard'),
+                      tooltip: '收起键盘',
+                      onPressed: () {
+                        FocusManager.instance.primaryFocus?.unfocus();
+                      },
+                      icon: const Icon(Icons.keyboard_hide, size: 20)),
+                ]),
+              ),
+            ),
+          ),
+        );
   }
+
+  Widget _toolBtn({required String key, IconData? icon, Widget? iconWidget,
+      required String tip, required VoidCallback onTap}) =>
+      IconButton(
+          key: Key(key),
+          tooltip: tip,
+          onPressed: onTap,
+          icon: iconWidget ?? Icon(icon, size: 20));
 }
