@@ -33,6 +33,25 @@ List<String> get progressTableSqls => [
 ''',
     ];
 
+/// v2.2/T-122: 笔记表（App 为唯一创作源，PC 仅作备份镜像）。
+/// 一题一篇由部分唯一索引兜底；墓碑行 question_id 置空不占位。
+List<String> get notesTableSqls => [
+      '''
+  CREATE TABLE IF NOT EXISTS notes(
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL DEFAULT '',
+    content_md TEXT NOT NULL DEFAULT '',
+    question_id INTEGER,
+    deleted INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT,
+    updated_at TEXT)
+''',
+      '''
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_notes_question
+    ON notes(question_id) WHERE question_id IS NOT NULL AND deleted = 0
+''',
+    ];
+
 class SubjectStat {
   final Subject subject;
   final int chapters;
@@ -69,7 +88,7 @@ class DbService {
     }
     _cache.remove(name);
     final dir = await getDefaultDatabasesDirectory();
-    final db = await openDatabase(p.join(dir, name), version: 2,
+    final db = await openDatabase(p.join(dir, name), version: 3,
         onCreate: (d, v) async {
       await d.execute('''
         CREATE TABLE subjects(
@@ -104,10 +123,19 @@ class DbService {
       for (final sql in progressTableSqls) {
         await d.execute(sql);
       }
+      for (final sql in notesTableSqls) {
+        await d.execute(sql);
+      }
     }, onUpgrade: (d, oldV, newV) async {
       if (oldV < 2) {
         // v2.1: questions 补 image 列
         await d.execute('ALTER TABLE questions ADD COLUMN image TEXT');
+      }
+      if (oldV < 3) {
+        // v2.2/T-122: notes 表（仅新增，不动旧表）
+        for (final sql in notesTableSqls) {
+          await d.execute(sql);
+        }
       }
     });
     final svc = DbService._(db);
@@ -410,6 +438,117 @@ class DbService {
       await db.update('questions', {'image': null},
           where: 'image = ?', whereArgs: [r]);
     }
+  }
+
+  // ---------------------------------------------------------- 笔记（v2.2/T-122）
+
+  /// 全部笔记（updated_at 倒序；默认不含墓碑）
+  Future<List<Note>> allNotes({bool includeDeleted = false}) async {
+    final rows = await db.query('notes',
+        where: includeDeleted ? null : 'deleted = 0',
+        orderBy: 'updated_at DESC');
+    return rows.map(Note.fromRow).toList();
+  }
+
+  /// 存活笔记数（主页入口角标）
+  Future<int> liveNoteCount() async {
+    final r = await db.rawQuery(
+        'SELECT COUNT(*) AS n FROM notes WHERE deleted = 0');
+    return (r.first['n'] as int?) ?? 0;
+  }
+
+  Future<Note?> noteById(String id) async {
+    final rows = await db.query('notes',
+        where: 'id = ?', whereArgs: [id], limit: 1);
+    return rows.isEmpty ? null : Note.fromRow(rows.first);
+  }
+
+  /// 题目笔记（一题一篇；无则 null）
+  Future<Note?> noteOfQuestion(int questionId) async {
+    final rows = await db.query('notes',
+        where: 'question_id = ? AND deleted = 0',
+        whereArgs: [questionId],
+        limit: 1);
+    return rows.isEmpty ? null : Note.fromRow(rows.first);
+  }
+
+  /// 新建或更新笔记（id 已存在即更新；created_at 保留首次值）。
+  /// 违反一题一篇唯一索引时抛异常（UI 层捕获提示，不静默）。
+  Future<String> saveNote({
+    required String id,
+    required String title,
+    required String contentMd,
+    int? questionId,
+  }) async {
+    final nowIso = DateTime.now().toIso8601String();
+    final prev = await db.query('notes',
+        where: 'id = ?', whereArgs: [id], limit: 1);
+    if (prev.isEmpty) {
+      await db.insert('notes', {
+        'id': id,
+        'title': title,
+        'content_md': contentMd,
+        'question_id': questionId,
+        'deleted': 0,
+        'created_at': nowIso,
+        'updated_at': nowIso,
+      });
+    } else {
+      await db.update('notes', {
+        'title': title,
+        'content_md': contentMd,
+        'question_id': questionId,
+        'deleted': 0,
+        'updated_at': nowIso,
+      }, where: 'id = ?', whereArgs: [id]);
+    }
+    return id;
+  }
+
+  /// 软删除为墓碑（清空 question_id 释放占位；推送成功后 purgeTombstones）
+  Future<void> softDeleteNote(String id) async {
+    await db.update('notes', {
+      'deleted': 1,
+      'question_id': null,
+      'updated_at': DateTime.now().toIso8601String(),
+    }, where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// 待推送墓碑
+  Future<List<Note>> tombstonedNotes() async {
+    final rows =
+        await db.query('notes', where: 'deleted = 1', orderBy: 'updated_at DESC');
+    return rows.map(Note.fromRow).toList();
+  }
+
+  /// 推送确认成功后物理清除全部墓碑
+  Future<void> purgeTombstones() async {
+    await db.delete('notes', where: 'deleted = 1');
+  }
+
+  /// pull 恢复：以 PC 为准整体替换 notes 表（仅收非墓碑行）。
+  /// UI 必须先明确警示"本地笔记将被覆盖"再调用。
+  Future<void> replaceAllNotes(List<Note> notes) async {
+    final batch = db.batch();
+    batch.delete('notes');
+    for (final n in notes.where((n) => !n.deleted)) {
+      batch.insert('notes', {
+        'id': n.id,
+        'title': n.title,
+        'content_md': n.contentMd,
+        'question_id': n.questionId,
+        'deleted': 0,
+        'created_at': n.createdAt.toIso8601String(),
+        'updated_at': n.updatedAt.toIso8601String(),
+      });
+    }
+    await batch.commit(noResult: true);
+  }
+
+  /// 推送载荷：全量存活笔记 + 墓碑（个人规模全表推送，幂等由 PC 端保证）
+  Future<List<Map<String, Object?>>> notesPushPayload() async {
+    final live = (await allNotes(includeDeleted: true));
+    return [for (final n in live) n.toPushJson()];
   }
 
   /// 某章已作答进度：qid -> 行（刷题页恢复状态用）

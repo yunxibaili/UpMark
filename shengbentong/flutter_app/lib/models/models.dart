@@ -2,6 +2,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math';
 
 class Subject {
   final int id;
@@ -262,4 +263,71 @@ class SyncPayload {
             .map((s) => SyncSubject.fromJson(s as Map<String, dynamic>))
             .toList(),
       );
+}
+
+// ---------------------------------------------------------------- 笔记（v2.2/T-120）
+
+DateTime _parseNoteDate(Object? v) =>
+    DateTime.tryParse(v?.toString() ?? '') ?? DateTime.now();
+
+/// 本地笔记行。App 是唯一创作源；deleted=true 为待推送的删除墓碑
+/// （墓碑清空 question_id 以释放"一题一篇"占位）。
+class Note {
+  final String id;
+  final String title;
+  final String contentMd;
+  final int? questionId;   // null=全局自由笔记；非空=绑定该题（一题一篇）
+  final bool deleted;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  Note({
+    required this.id,
+    this.title = '',
+    this.contentMd = '',
+    this.questionId,
+    this.deleted = false,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  })  : createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
+
+  factory Note.fromRow(Map<String, Object?> r) => Note(
+        id: r['id'] as String,
+        title: (r['title'] as String?) ?? '',
+        contentMd: (r['content_md'] as String?) ?? '',
+        questionId: r['question_id'] as int?,
+        deleted: (r['deleted'] as int? ?? 0) == 1,
+        createdAt: _parseNoteDate(r['created_at']),
+        updatedAt: _parseNoteDate(r['updated_at']),
+      );
+
+  /// 推送载荷（契约 v2.2 schemas/note）
+  Map<String, Object?> toPushJson() => {
+        'id': id,
+        'title': title,
+        'content_md': contentMd,
+        'question_id': questionId,
+        'deleted': deleted,
+        'created_at': createdAt.toIso8601String(),
+        'updated_at': updatedAt.toIso8601String(),
+      };
+
+  /// pull 恢复载荷（服务端不下发墓碑）
+  factory Note.fromPullJson(Map<String, dynamic> j) => Note(
+        id: j['id'].toString(),
+        title: j['title']?.toString() ?? '',
+        contentMd: j['content_md']?.toString() ?? '',
+        questionId: j['question_id'] as int?,
+        deleted: false,
+        createdAt: _parseNoteDate(j['created_at']),
+        updatedAt: _parseNoteDate(j['updated_at']),
+      );
+}
+
+/// 32 位十六进制随机 ID（免 crypto 新依赖；PC 端校验 hex{8,40} 通过）
+String newNoteHexId() {
+  final rnd = Random.secure();
+  return List.generate(
+      16, (_) => rnd.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
 }

@@ -2,6 +2,7 @@
 library;
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -128,6 +129,46 @@ class ApiService {
   Future<void> deleteSubject(int subjectId) async {
     try {
       await _dio.delete('/api/admin/subject/$subjectId');
+    } catch (e) {
+      throw ApiException(mapDioError(e));
+    }
+  }
+
+  // ------------------------------------------------- 笔记备份（v2.2/T-122）
+
+  /// 全量推送笔记（含墓碑）。返回 {accepted, missing_images}；失败抛 ApiException。
+  Future<Map<String, dynamic>> pushNotes(
+      List<Map<String, Object?>> notes) async {
+    try {
+      final r = await _dio.post('/api/notes/push', data: {'notes': notes});
+      return Map<String, dynamic>.from(r.data as Map);
+    } catch (e) {
+      throw ApiException(mapDioError(e));
+    }
+  }
+
+  /// 全量拉取笔记（换机恢复）。返回 {exported_at, notes, images}。
+  Future<Map<String, dynamic>> pullNotes() async {
+    try {
+      final r = await _dio.get('/api/notes/pull');
+      return Map<String, dynamic>.from(r.data as Map);
+    } catch (e) {
+      throw ApiException(mapDioError(e));
+    }
+  }
+
+  /// 上传单张笔记图：原始字节流 octet-stream（零 multipart 依赖）。
+  Future<Map<String, dynamic>> uploadNoteImage(
+      String name, Uint8List bytes) async {
+    try {
+      final r = await _dio.post('/api/notes/image',
+          data: bytes,
+          queryParameters: {'name': name},
+          options: Options(headers: {
+            Headers.contentLengthHeader: bytes.length,
+            Headers.contentTypeHeader: 'application/octet-stream',
+          }));
+      return Map<String, dynamic>.from(r.data as Map);
     } catch (e) {
       throw ApiException(mapDioError(e));
     }
