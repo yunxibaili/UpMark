@@ -1,6 +1,60 @@
 # UpMark 升本通 · 版本说明
 
-## 当前版本：v1.0（图像+LaTeX+模拟考试版）
+## 当前版本：v1.1（笔记版）
+
+> 日期：2026-08-26 | 分支：notes-support（开发完结，待用户实机验收后合入 main）
+
+---
+
+## 本版核心功能：🗒 笔记
+
+### 全局笔记 + 题目笔记
+- **全局笔记**：主页「我的笔记」入口（计数角标）→ 多篇列表（标题+摘要+更新时间倒序），FAB 新建，长按删除
+- **题目笔记**：刷题页 AppBar「本题笔记」入口，1 题 1 篇（部分唯一索引兜底），删除自动释放绑定
+- 返回自动保存（PopScope）；空笔记不落库
+
+### MD 编辑 / 预览双 Tab
+- 工具栏六键：加粗 / 行内代码 / 代码围栏 / `$行内公式$` / `$$公式块$$` / 插图
+- 正文纯 Markdown 存储（零锁定，PC 可直接阅读）
+
+### 渲染三件套
+- **KaTeX 数学公式**：flutter_math_fork（AppFlowy 同款纯 Dart 实现），行内/块级居中，解析失败红字原文不静默
+- **VSCode 风格代码高亮**：flutter_highlight（highlight.js 移植，192 语言含 C/C++/Python/Java），vs/vs2015 主题即 VSCode 同源配色
+- **插图**：image_picker 相册/拍照 → 32 位 hex 名本地存储，MD 内 `noteimg://` 协议引用（Joplin 资源模式同思路），缺图占位不阻断
+
+### 备份到 PC / 从 PC 恢复
+- 方向与题库相反：**App 是唯一创作源，PC 仅作镜像仓库**
+- 备份：全量推送（幂等 upsert，updated_at 新者胜）→ 按 missing_images 补传图片 → 清除本地墓碑
+- 恢复：覆盖警示确认 → 整体替换本地 → 图片原子下载（.tmp→rename）
+- 删除走墓碑随备份上行，PC 端同步删除并回收孤儿图
+- 离线时人话提示（服务端 4xx/5xx 不再吐原始英文）
+
+## 契约与数据（v2.2）
+- API 契约升 **v2.2**：新增 `POST /api/notes/push`、`POST /api/notes/image`、`GET /api/notes/pull`、`GET /static/note_images/{name}` + note schema（只增不改名，schema_version 维持 2）
+- App sqflite **v3 迁移**：新增 notes 表；sync_queue 持久化机制零改动
+- PC SQLite 新增 notes 表 + `%LOCALAPPDATA%/UpMark/static/note_images/`（push/pull 后孤儿回收，共用图保护）
+- 构建适配：sqlite3 原生钩子改 `source: system`（Android 走框架层 / Windows 测试用 winsqlite3，构建零外网下载）
+
+## 技术指标（v1.1）
+
+| 维度 | 数值 |
+|------|------|
+| 题库总量 | 785 题 / 12 科目（T-118 后基线，本版未动） |
+| PC 测试 | 55/55 绿（+9 笔记用例） |
+| Flutter 测试 | 79/79 绿（+30 笔记用例） |
+| 新增依赖 | 4（均已审批：flutter_math_fork / image_picker / flutter_highlight / markdown 显式声明） |
+| E2E | MuMu↔PC 实测全链路：新建→自动保存→备份落库→PC直推→恢复→删除同步→数据清零 |
+
+## 已知限制（v1.1 新增）
+
+- PC 重导题库会使题目笔记的 question_id 失联 → 恢复时校验存在性，失联笔记降级孤儿保留（不丢数据）
+- 多设备同时编辑同一篇 → 后写覆盖（updated_at 裁决），个人单设备场景无影响
+- 备份/恢复为手动触发（笔记页右上角云同步菜单）
+- APK 体积 +约 1MB（KaTeX 字体内嵌）
+
+---
+
+## 历史版本：v1.0（图像+LaTeX+模拟考试版）
 
 > 日期：2026-08-25 | 分支：main | 构建：release APK 56MB
 

@@ -5,6 +5,21 @@
 
 ---
 
+## T-120~T-125 笔记版本（全局笔记+题目笔记+备份同步）
+- [x] 契约 v2.2 文档先行：4 个笔记端点 + note schema（只增不改名，schema_version 维持 2）
+- [x] PC 端：notes 表（UUID主键/一题一篇UNIQUE/墓碑物理删）+ push/pull/image 端点 + /static/note_images 挂载 + 孤儿图回收（pytest 55/55 + HTTP 冒烟全通）
+- [x] App 数据层：sqflite v3 迁移 + CRUD/墓碑流转/pull整体替换 + api 三端点 + note_image_store（部分唯一索引实测拦截同题双篇）
+- [x] 编辑器：MD 编辑/预览双Tab + 六键工具栏 + KaTeX公式（失败红字不静默）+ VSCode风高亮 + 插图底单 + PopScope返回自动保存
+- [x] 入口接线：主页第四卡「我的笔记」（计数角标）+ 刷题页 AppBar「本题笔记」（可选回调保持纯UI）
+- [x] 备份/恢复：push 幂等+missing补图+清墓碑 / pull 整体替换+原子下载（本地 HttpServer 实测 4 用例）
+- [x] MuMu↔PC E2E 实测：新建→自动保存→列表刷新→备份落库（PC pull 验证字段完整）→PC直推另一设备笔记→App恢复显示→长按删除→备份→PC 同步删除→测试数据清零
+- [x] 质量门：pytest 55/55 + analyze 零问题 + Flutter 79/79 + debug APK 构建部署
+- [x] E2E 发现问题当场修复：mapDioError 补 badResponse 人话映射（旧版服务端 404 曾吐原始英文）
+- [ ] 用户实机验收（重点建议：题目笔记写一篇含公式/代码/插图，换机恢复演练）
+- 验收人：待用户 日期：2026-08-26
+
+---
+
 ## T-113 提示词v1.3五补丁 + 环境大扫除
 - [x] 五补丁落地（$$仅讲解/填空;双轨/代码三位置/图像三级来源/打包约定）
 - [x] 过期引用清零（规范v2.2/契约v2/快照749）+ 模板双反斜杠bug修复

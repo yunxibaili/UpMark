@@ -1,7 +1,7 @@
 # UpMark 升本通 · AI 交接上下文（压缩版）
 
 > 本文档供新 AI 接手项目时一次性喂入。覆盖全部必要上下文，读完即可干活。
-> 最后更新：2026-08-25 | 分支：main（发布）/ image-support（开发，已合入 main）
+> 最后更新：2026-08-26 | 分支：main（发布）/ image-support（历史开发线）/ notes-support（笔记版 v1.1 开发完结，待用户验收合入 main）
 
 ---
 
@@ -89,10 +89,11 @@ D:\dev\upmark\
 
 | 分支 | 用途 | 当前状态 |
 |------|------|----------|
-| `main` | 发布基线 | ✅ 已合入全部功能，与 image-support 同步 |
-| `image-support` | 开发分支 | ✅ 已合入 main，保留作为开发线 |
+| `main` | 发布基线 | ✅ v1.0 已发布 |
+| `image-support` | 历史开发线 | ✅ 已合入 main，保留 |
+| `notes-support` | 笔记版开发线 | 🟡 T-120~T-125 代码完结+E2E全通，待用户实机验收合入 main |
 
-**规则**：新功能在 image-support 开发，经用户批准后合入 main。归档文档（docs/归档/）和题库数据（test-bank/computer-bank）永远不上传 GitHub。
+**规则**：新功能开独立分支开发，经用户批准后合入 main。归档文档（docs/归档/）和题库数据（test-bank/computer-bank）永远不上传 GitHub。
 
 ---
 
@@ -141,7 +142,7 @@ MD写【图】images/fig1.png → 解析器识别(归属其后题目/分区重�
 | 文档 | 版本 | 位置 |
 |------|------|------|
 | MD格式规范 | v2.2 | docs/MD格式规范v2.2.md（v2.1及更早已归档） |
-| API契约 | v2.1 | docs/API契约.md（人读）+ api_contract_v2.json（机器） |
+| API契约 | **v2.2** | docs/API契约.md（人读）+ api_contract_v2.json（机器）；v2.2 增补笔记端点 push/pull/image/note_images |
 | 提示词规范 | v1.3 | docs/AI收集题目提示词规范.md |
 | 代码审批规范 | v1.2 | docs/代码生成与审批规范.md |
 | 数据集技术文档 | v1.4 | docs/数据集技术文档.md |
@@ -213,8 +214,9 @@ MD写【图】images/fig1.png → 解析器识别(归属其后题目/分区重�
 | T-117 全量测试（清零→双通道→毒化10点→报告） | ✅ |
 | T-118 单科目删除双端 | ✅ |
 | T-119 连接扫描 + PC直达网页 | ✅ |
+| **T-120~T-125 笔记版本（全局+题目笔记/KaTeX公式/VSCode风高亮/插图/备份到PC/恢复）** | ✅ 代码完结+E2E全通，**待用户实机验收** |
 
-**队列**：空。**可选项**：release打包签名、对错动画、T-111阶段二精美公式、笔记版本。
+**队列**：空。**可选项**：笔记备份自动化触发、release打包签名、对错动画、T-111阶段二精美公式。
 
 ---
 
@@ -277,3 +279,5 @@ python scripts/validate_prompts.py "D:\dev\upmark\shengbentong\test-bank\全量�
 8. **删除科目**：双端同删（App调PC接口+清本地），答题记录一并删除不可恢复
 9. **归档文档**：docs/归档/ 本地保留但不上传
 10. **data_version**：动态推导，每次导入后必变（App会弹更新提示），不导入则稳定
+11. **笔记方向与题库相反**：App 是唯一创作源、PC 仅镜像；备份/恢复在 App 笔记页右上角云同步菜单手动触发；PC 重导题库会使题目笔记 question_id 失联（恢复时降级孤儿保留）
+12. **sqlite3 原生钩子**：构建环境不可达 github，pubspec `hooks.user_defines.sqlite3.source: system` 已固化——勿删除，否则 APK 构建失败
