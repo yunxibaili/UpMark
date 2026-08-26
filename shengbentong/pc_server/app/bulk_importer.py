@@ -10,19 +10,44 @@
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import shutil
 import sys
+import urllib.parse
 from datetime import datetime
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from .models.database import (
-    Chapter, ImportLog, Question, Subject, engine, init_db, SessionLocal,
+    APP_DATA_DIR, Chapter, ImportLog, Question, Subject, engine, init_db,
+    SessionLocal,
 )
 from .parser.models import FileRejected
 from .parser.strict_parser import StrictMDParser, load_source
+
+STATIC_IMAGES = os.path.normpath(os.path.join(APP_DATA_DIR, "static", "images"))  # T-115: 复用APP_DATA_DIR
+
+
+def resolve_image(rel: Optional[str], md_path: str,
+                  extra_warnings: list) -> Optional[str]:
+    """v2.1:【图】相对路径 → 拷入 static/images 并返回 /static/images/… URL。
+    图像文件缺失→W323警告+置None（不阻断导入）。同名覆盖以支持图像内容更新。"""
+    if not rel:
+        return None
+    src = os.path.normpath(os.path.join(os.path.dirname(md_path), rel))
+    if not os.path.isfile(src):
+        extra_warnings.append({"line": 0, "code": "W323",
+                               "msg": f"图像文件不存在: {rel}"})
+        return None
+    os.makedirs(STATIC_IMAGES, exist_ok=True)
+    digest = hashlib.sha1(os.path.abspath(src).encode("utf-8")).hexdigest()[:12]
+    ext = os.path.splitext(src)[1].lower() or ".png"
+    name = f"{digest}_{hashlib.sha1(rel.encode('utf-8')).hexdigest()[:8]}{ext}"
+    shutil.copyfile(src, os.path.join(STATIC_IMAGES, name))
+    return f"/static/images/{urllib.parse.quote(name)}"
 
 
 def _detect_subject(first_lines: list[str]) -> Optional[str]:
@@ -48,6 +73,19 @@ def import_bank(bank_root: str) -> dict:
         "rejected": [],
     }
     logs: list[ImportLog] = []
+
+    # T-117 防误清空守卫：扫描到 0 个练习题.md 时拒绝导入
+    # （空导入会触发"空科目自清"，曾致整个题库被清空——全量测试发现）
+    md_found = any(
+        os.path.isfile(os.path.join(bank_root, top, chap, "练习题.md"))
+        for top in os.listdir(bank_root)
+        if os.path.isdir(os.path.join(bank_root, top))
+        for chap in os.listdir(os.path.join(bank_root, top))
+    )
+    if not md_found:
+        raise ValueError(
+            f"导入目录中未发现任何 练习题.md（bank_root={os.path.abspath(bank_root)}），"
+            "已取消导入以防止误清空题库；请检查目录结构：题库根/科目/章节/练习题.md")
 
     with SessionLocal() as db:                                  # type: Session
         for top in sorted(os.listdir(bank_root)):
@@ -125,6 +163,7 @@ def import_bank(bank_root: str) -> dict:
 
                 # ---- 题目重建（幂等） ----
                 db.query(Question).filter_by(chapter_id=chapter.id).delete()
+                extra_warnings: list = []
                 for q in result.questions:
                     db.add(Question(
                         chapter_id=chapter.id,
@@ -139,6 +178,7 @@ def import_bank(bank_root: str) -> dict:
                                  if q.accepts else None),
                         explanation=q.explanation,
                         source_line=q.source_line,
+                        image=resolve_image(q.image, ex_file, extra_warnings),
                     ))
 
                 summary["questions"] += len(result.questions)
@@ -152,7 +192,7 @@ def import_bank(bank_root: str) -> dict:
                     "imported": len(result.questions),
                     "skippedQuestions": [vars(s) for s in result.skipped_questions],
                     "skippedSections": [vars(s) for s in result.skipped_sections],
-                    "warnings": [vars(w) for w in result.warnings],
+                    "warnings": [vars(w) for w in result.warnings] + extra_warnings,
                 }
                 logs.append(_log(db, subject.id, ex_file, status, report))
 
@@ -222,6 +262,7 @@ def import_single_file(path: str) -> dict:
             chapter.title = result.chapter.title
 
         db.query(Question).filter_by(chapter_id=chapter.id).delete()
+        extra_warnings: list = []
         for q in result.questions:
             db.add(Question(
                 chapter_id=chapter.id,
@@ -236,13 +277,14 @@ def import_single_file(path: str) -> dict:
                          if q.accepts else None),
                 explanation=q.explanation,
                 source_line=q.source_line,
+                image=resolve_image(q.image, path, extra_warnings),
             ))
         db.commit()
         return {"ok": True, "subject": subject_name,
                 "chapter": chapter.title, "chapter_id": chapter.id,
                 "imported": len(result.questions),
                 "skippedQuestions": [vars(s) for s in result.skipped_questions],
-                "warnings": [vars(w) for w in result.warnings]}
+                "warnings": [vars(w) for w in result.warnings] + extra_warnings}
 
 
 if __name__ == "__main__":  # pragma: no cover

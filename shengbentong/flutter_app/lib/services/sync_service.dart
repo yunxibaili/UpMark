@@ -3,8 +3,11 @@
 library;
 
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
 
 import '../models/models.dart';
 import 'api_service.dart';
@@ -50,12 +53,15 @@ class SyncService {
     onStage('正在解析同步载荷…');
     final payload = SyncPayload.fromJson(raw);
 
-    if (payload.schemaVersion > 1) {
+    if (payload.schemaVersion > 2) {
       throw ApiException('协议版本不兼容(${payload.schemaVersion})，请升级App');
     }
 
     onStage('正在写入本地数据库（${payload.subjects.length}个科目）…');
     await db.replaceAll(payload);
+
+    // v2.1: 下载题目图像到本地缓存（离线可渲染），成功改写为本地路径
+    await _downloadImages(payload, onStage);
 
     final sp = await SharedPreferences.getInstance();
     await sp.setString(ApiConfig.dataVersionKey, payload.dataVersion);
@@ -76,6 +82,60 @@ class SyncService {
         chapters: chapterTotal,
         questions: questionTotal,
         elapsed: sw.elapsed);
+  }
+
+  /// v2.1: 下载所有题目图像到 `databases/upmark_images/`。
+  /// 原子写盘在 ApiService.downloadTo 内（T-112：.tmp→改名，杀进程/断网不留半张图）；
+  /// 本层负责：同步开始清理历史 .tmp 残留、单图失败置null不阻断。
+  /// 成功→DB改写为本地绝对路径。返回成功数。
+  Future<int> _downloadImages(
+      SyncPayload payload, void Function(String stage) onStage) async {
+    final remoteToQ = <String, Set<int>>{};
+    for (final s in payload.subjects) {
+      for (final c in s.chapters) {
+        for (final q in c.questions) {
+          final img = q.image;
+          if (img != null && img.isNotEmpty) {
+            remoteToQ.putIfAbsent(img, () => <int>{}).add(q.id);
+          }
+        }
+      }
+    }
+    if (remoteToQ.isEmpty) return 0;
+
+    final dir = p.join(await getDatabasesPath(), 'upmark_images');
+    await Directory(dir).create(recursive: true);
+    await _cleanTmpFiles(dir);          // 上次中断遗留的半成品直接忽略/清除
+
+    final okMap = <String, String>{};
+    final failed = <String>{};
+    var i = 0;
+    for (final remote in remoteToQ.keys) {
+      i++;
+      onStage('正在下载题目图像（$i/${remoteToQ.length}）…');
+      final save = p.join(dir, remote.split('/').last);
+      try {
+        await api.downloadTo(remote, save);
+        okMap[remote] = save;
+      } catch (_) {
+        failed.add(remote);          // 单图失败不阻断同步
+      }
+    }
+    await db.rewriteQuestionImages(okMap);
+    if (failed.isNotEmpty) await db.nullifyQuestionImages(failed);
+    return okMap.length;
+  }
+
+  static Future<void> _cleanTmpFiles(String dir) async {
+    try {
+      await for (final e in Directory(dir).list()) {
+        if (e is File && e.path.endsWith('.tmp')) {
+          try {
+            await e.delete();
+          } catch (_) {/* 占用等场景忽略，渲染只认正式名 */}
+        }
+      }
+    } catch (_) {}
   }
 
   /// 对比服务器与本地 data_version；从未同步或版本不同 → true；离线返回 false（静默）

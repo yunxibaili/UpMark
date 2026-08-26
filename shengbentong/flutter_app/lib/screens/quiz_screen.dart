@@ -3,11 +3,14 @@
 /// 这使本页面可在flutter test中用纯内存数据直接测试，无需任何mock。
 library;
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../models/models.dart';
 import '../services/quiz_logic.dart';
+import '../widgets/rich_text.dart';
 
 class QuizScreen extends StatefulWidget {
   final String title;
@@ -133,11 +136,24 @@ class _QuizScreenState extends State<QuizScreen> {
                           color: Colors.grey.shade800)))),
             const SizedBox(height: 12),
           ],
+          if ((_q.image ?? '').isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Container(width: double.infinity, color: const Color(0xFFFAFBFC),
+                    padding: const EdgeInsets.all(8),
+                    child: Image.file(File(_q.image!),
+                        fit: BoxFit.contain, height: 230,
+                        errorBuilder: (_, _, _) =>
+                            const SizedBox.shrink()))),
+          ],
           const SizedBox(height: 6),
-          Text(_q.stem.isEmpty
-                  ? '（完形填空 第${_q.number}空）'
-                  : _q.stem,
-              style: const TextStyle(fontSize: 16, height: 1.5)),
+          if (_q.stem.isEmpty)
+            Text('（完形填空 第${_q.number}空）',
+                style: const TextStyle(fontSize: 16, height: 1.5))
+          else
+            richText(_q.stem,
+                style: const TextStyle(fontSize: 16, height: 1.5)),
         ])));
   }
 
@@ -191,8 +207,12 @@ class _QuizScreenState extends State<QuizScreen> {
           crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('【讲解】', style: TextStyle(fontWeight: FontWeight.bold, color: brandBlue)),
             const SizedBox(height: 6),
-            Text(_q.explanation.isEmpty ? '（本题暂无解析）' : _q.explanation,
-                style: const TextStyle(fontSize: 14.5, height: 1.55)),
+            if (_q.explanation.isEmpty)
+              const Text('（本题暂无解析）',
+                  style: TextStyle(fontSize: 14.5, height: 1.55))
+            else
+              richText(_q.explanation,
+                  style: const TextStyle(fontSize: 14.5, height: 1.55)),
           ]))),
     ];
   }
@@ -236,7 +256,7 @@ class _QuizScreenState extends State<QuizScreen> {
     final isMulti = _q.type == QuestionType.multipleChoice;
     final picked = isMulti && _picked.contains(letter);
     return Padding(padding: const EdgeInsets.only(bottom: 10),
-      child: InkWell(borderRadius: BorderRadius.circular(9),
+      child: InkWell(borderRadius: BorderRadius.circular(10),
         onTap: () {
           if (_isAnswered) return;
           if (isMulti) {
@@ -248,14 +268,14 @@ class _QuizScreenState extends State<QuizScreen> {
         child: Container(width: double.infinity, padding: const EdgeInsets.all(13),
           decoration: BoxDecoration(
               border: Border.all(color: picked ? brandBlue : Colors.grey.shade300, width: 1.4),
-              borderRadius: BorderRadius.circular(9)),
+              borderRadius: BorderRadius.circular(10)),
           child: Row(children: [
             CircleAvatar(radius: 13,
                 backgroundColor: picked ? brandBlue : brandBlue.withValues(alpha: .15),
                 child: Text(letter, style: TextStyle(fontSize: 13,
                     fontWeight: FontWeight.bold, color: picked ? Colors.white : brandBlue))),
             const SizedBox(width: 12),
-            Expanded(child: Text(content, style: const TextStyle(fontSize: 15))),
+            Expanded(child: richText(content, style: const TextStyle(fontSize: 15))),
             if (picked) const Icon(Icons.check_circle, color: brandBlue, size: 20),
           ]))));
   }

@@ -9,7 +9,6 @@ db_snapshot/
 
 # ---- 归档旧文档：仅本地保留，不上传 ----
 shengbentong/docs/归档/
-db_snapshot/
 
 # ---- Python 产物 ----
 __pycache__/
@@ -23,16 +22,21 @@ venv/
 # ---- 数据库与运行时文件 ----
 *.db
 *.sqlite3
+*.hprof
 
 # ---- 编辑器/系统 ----
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
-
 skills-lock.json
-.local/
 build/
 **/build/
 **/__pycache__/
 **/*.pyc
+archive/
+.dart_tool/
+**/.dart_tool/
+**/.gradle/
+
+shengbentong/pc_server/static/images/

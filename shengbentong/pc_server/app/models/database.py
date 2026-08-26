@@ -14,7 +14,12 @@ from sqlalchemy import (
 from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column,
                             relationship, sessionmaker)
 
-DB_PATH = os.environ.get("SBT_DB", "shengbentong.db")
+# T-115: 运行时数据归位 %LOCALAPPDATA%/UpMark/（源码树只留代码）
+APP_DATA_DIR = os.environ.get(
+    "SBT_DATA",
+    os.path.join(os.environ.get("LOCALAPPDATA", os.path.dirname(os.path.abspath(__file__))), "UpMark"))
+os.makedirs(APP_DATA_DIR, exist_ok=True)
+DB_PATH = os.environ.get("SBT_DB", os.path.join(APP_DATA_DIR, "shengbentong.db"))
 
 engine = create_engine(f"sqlite:///{DB_PATH}", echo=False, future=True)
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
@@ -78,6 +83,7 @@ class Question(Base):
     accepts: Mapped[str | None] = mapped_column(Text)                 # blank:JSON二维数组
     explanation: Mapped[str] = mapped_column(Text, nullable=False, default="")
     source_line: Mapped[int | None] = mapped_column(Integer)
+    image: Mapped[str | None] = mapped_column(Text)                   # v2.1:静态图URL(/static/images/…)
 
     chapter: Mapped["Chapter"] = relationship(back_populates="questions")
     records: Mapped[list["AnswerRecord"]] = relationship(
@@ -100,7 +106,7 @@ class AnswerRecord(Base):
 
 
 class ImportLog(Base):
-    """导入日志：report_json 存完整导入报告（《规范v2.0》第九节格式）"""
+    """导入日志：report_json 存完整导入报告（《规范v2.2》第十节格式）"""
     __tablename__ = "import_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -114,8 +120,20 @@ class ImportLog(Base):
 
 
 def init_db() -> None:
-    """建表（幂等）。App端sqflite表结构见 flutter_app/设计文档.md 第4节。"""
+    """建表（幂等）+ 轻量迁移。App端sqflite表结构见 flutter_app/设计文档.md 第4节。"""
     Base.metadata.create_all(engine)
+    _migrate()
+
+
+def _migrate() -> None:
+    """v2.1：questions 表补 image 列（create_all 不会 ALTER 已有表）。"""
+    with engine.connect() as conn:
+        cols = {row[1] for row in conn.exec_driver_sql(
+            "PRAGMA table_info(questions)")}
+        if "image" not in cols:
+            conn.exec_driver_sql(
+                "ALTER TABLE questions ADD COLUMN image TEXT")
+            conn.commit()
 
 
 def get_db():

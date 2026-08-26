@@ -1,5 +1,5 @@
 """升本通 MD 解析器 — 数据模型
-对应《MD格式规范v2.0》第十节 JSON Schema。
+对应《MD格式规范v2.2》第十一节 JSON Schema。
 """
 from __future__ import annotations
 
@@ -45,6 +45,7 @@ class Question:
     accepts: List[List[str]]            # blank专用：每空的可接受答案列表
     explanation: str                    # 允许空串(W312)
     source_line: int
+    image: Optional[str] = None         # v2.1:【图】相对路径，无则None
 
     def to_dict(self) -> dict:
         d = asdict(self)

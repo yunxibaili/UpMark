@@ -1,5 +1,5 @@
 """升本通 MD 解析器 — 自研行扫描状态机
-依据《MD格式规范v2.0》实现。白名单制：每一行要么成功解析，
+依据《MD格式规范v2.2》实现。白名单制：每一行要么成功解析，
 要么命中预定义的 E(致命)/W(跳过或警告) 规则码 —— 绝不猜测，绝不静默丢弃。
 """
 from __future__ import annotations
@@ -33,8 +33,11 @@ RE_ANS_PLAIN = re.compile(r"^【答案】\s*(.*)$")                        # 非
 RE_EXPL_B = re.compile(r"^\*\*【讲解】\*\*\s*(.*)$")
 RE_EXPL_PLAIN = re.compile(r"^【讲解】\s*(.*)$")
 RE_MATERIAL = re.compile(r"^\*{0,2}\s*【材料】\s*\*{0,2}\s*$")
+RE_IMAGE = re.compile(r"^\*{0,2}\s*【图】\s*(\S.*?)\s*\*{0,2}\s*$")   # v2.1:【图】相对路径
+RE_IMAGE_EMPTY = re.compile(r"^\*{0,2}\s*【图】\s*\*{0,2}\s*$")
 RE_FENCE_OPEN = re.compile(r"^\s{0,3}(```+|~~~+)\s*(\w*)\s*$")
 RE_FENCE_CLOSE = re.compile(r"^\s{0,3}(```+|~~~+)\s*$")
+RE_DOLLAR_BLOCK = re.compile(r"^\s{0,3}\$\$")   # v2.2: $$独立公式块起始（透传文本）
 RE_BLANKS = re.compile(r"_{3,}")
 RE_SEC_SEQ = re.compile(r"^([一二三四五六七八九十]{1,3})、\s*(.*)$")
 RE_CHAPTER = re.compile(r"^第\s*([0-9]{1,3}|[一两二三四五六七八九十]{1,3})\s*章\s*(.*)$")
@@ -95,11 +98,13 @@ class _Q:
     """正在组装的一道题"""
 
     def __init__(self, raw_number: int, style: str, difficulty: Optional[int],
-                 material: Optional[str], line: int):
+                 material: Optional[str], line: int,
+                 image: Optional[str] = None):
         self.raw_number = raw_number
         self.style = style
         self.difficulty = difficulty
         self.material = material
+        self.image = image
         self.line = line
         self.stem_parts: List[str] = [""]
         self.option_pairs: List[Tuple[str, str]] = []
@@ -165,6 +170,7 @@ class StrictMDParser:
         expected_opt = "B"                # 多行拆分时的下一个选项字母
         material_buf: Optional[List[str]] = None
         material_current: Optional[str] = None
+        image_current: Optional[str] = None   # v2.1:【图】当前图像（语义同材料，随分区重置）
         prev_blank = True
 
         def warn(line: int, code: str, msg: str) -> None:
@@ -283,6 +289,7 @@ class StrictMDParser:
                 flush_material()
                 close_skip_section(lineno - 1)
                 material_current = None           # 新分区重置材料
+                image_current = None              # 新分区重置图像（v2.1）
                 header_txt = m_h2.group(1).strip()
                 m_seq = RE_SEC_SEQ.match(header_txt)
                 seq_val: Optional[int] = None
@@ -319,6 +326,19 @@ class StrictMDParser:
                 prev_blank = not stripped
                 continue
 
+            # ---------- 图像标记（v2.1，语义同材料：归属其后题目，随分区重置） ----------
+            m_img = RE_IMAGE.match(stripped)
+            if m_img:
+                finalize_question()
+                flush_material()
+                image_current = m_img.group(1).strip()
+                prev_blank = True
+                continue
+            if RE_IMAGE_EMPTY.match(stripped):
+                warn(lineno, "W322", "【图】行缺少图像相对路径，已忽略")
+                prev_blank = True
+                continue
+
             # ---------- 材料块标记 ----------
             if RE_MATERIAL.match(stripped):
                 finalize_question()
@@ -326,9 +346,11 @@ class StrictMDParser:
                 material_buf = []
                 prev_blank = True
                 continue
-            if material_buf is not None:      # 收集材料，遇 分区/新材料/题目起始 即终止
+            if material_buf is not None:      # 收集材料，遇 分区/新材料/新图像/题目起始 即终止
                 terminate = bool(RE_H2_SECTION.match(line)) \
-                    or bool(RE_MATERIAL.match(stripped))
+                    or bool(RE_MATERIAL.match(stripped)) \
+                    or bool(RE_IMAGE.match(stripped)) \
+                    or bool(RE_IMAGE_EMPTY.match(stripped))
                 if not terminate and cur_q is None:
                     probe = self._match_question_start(
                         line, stripped, None, cur_qtype, cur_is_context,
@@ -373,7 +395,8 @@ class StrictMDParser:
                     warn(lineno, "W310",
                          f"题号 {n} 与期望 {expected_next} 不符（跳号/重复/乱序），已自动重排")
                 expected_next = n + 1
-                cur_q = _Q(n, style, diff, material_current, lineno)
+                cur_q = _Q(n, style, diff, material_current, lineno,
+                           image_current)
                 if stem0:
                     cur_q.stem_parts = [stem0]
                     self._try_split_inline(cur_q)   # 题干与选项同行（真题卷式）
@@ -570,8 +593,9 @@ class StrictMDParser:
 
     def _lookahead_says_question(self, lines: List[str], idx_one_based: int) -> bool:
         """从候选行向后找结构性证据（选项/答案/讲解/材料/分区/分隔线/围栏/其他题干）。
-        遇到代码块时跳过其内部内容继续扫描（代码块本身即新题的强证据）。"""
+        遇到代码块或$$公式块时跳过其内部内容继续扫描（v2.2：$$块曾因含无证据行导致吞题/E130）。"""
         in_code = False
+        in_dollar = False
         for j in range(idx_one_based, len(lines)):      # lines[j] 为第 j+1 行
             if j == idx_one_based - 1:
                 continue                                 # 跳过候选行自身
@@ -584,9 +608,17 @@ class StrictMDParser:
                     in_code = False
                     return True                          # 围栏正常闭合=结构证据
                 continue
+            if in_dollar:
+                if t.endswith("$$"):
+                    in_dollar = False                    # $$块闭合，继续找证据
+                continue
             if RE_FENCE_OPEN.match(raw_j):
                 in_code = True
                 continue
+            if RE_DOLLAR_BLOCK.match(raw_j):
+                if not (t.endswith("$$") and len(t) > 4):
+                    in_dollar = True                     # 多行块：等待闭合行
+                continue                                 # 单行块直接跳过
             return bool(
                 RE_OPTION.match(raw_j) or RE_ANS_B_VAL.match(t)
                 or RE_ANS_B_EMPTY.match(t) or RE_ANS_PLAIN.match(t)
@@ -736,6 +768,7 @@ class StrictMDParser:
             accepts=accepts,
             explanation="\n".join(q.expl_parts).strip(),
             source_line=q.line,
+            image=q.image,
         ))
 
     # ------------------------------------------------------------ 知识点文件

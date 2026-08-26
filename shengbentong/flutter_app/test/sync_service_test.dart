@@ -1,4 +1,4 @@
-﻿/// SyncService 集成测试：本地HttpServer下发 → 全量落库 → 版本检测
+﻿/// SyncService 集成测试：本地HttpServer下发 → 全量落库 → 版本检测 → 图像原子下载
 library;
 
 
@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'helpers/test_db.dart';
@@ -69,18 +70,28 @@ void main() {
 
   late HttpServer server;
   String version = 'VTEST-1';
+  String? qImage;                  // 非空时注入第1题的image字段
 
   Future<void> startServer() async {
     server = await HttpServer.bind('127.0.0.1', 0);
     server.listen((req) async {
       req.response.headers.contentType = ContentType.json;
       if (req.uri.path == '/api/sync/all') {
-        final p = Map<String, dynamic>.from(payloadV1);
+        final p = jsonDecode(jsonEncode(payloadV1)) as Map<String, dynamic>;
         p['data_version'] = version;
+        if (qImage != null) {
+          ((p['subjects'] as List)[0]['chapters'] as List)[0]['questions'][0]
+              ['image'] = qImage;
+        }
         req.response.write(jsonEncode(p));
       } else if (req.uri.path == '/api/health') {
         req.response.write(jsonEncode(
             {'status': 'ok', 'schema_version': 1, 'stats': {'subjects': 1}}));
+      } else if (req.uri.path.startsWith('/static/images/')) {
+        req.response.headers.contentType = ContentType.binary;
+        req.response.add([1, 2, 3, 4]);
+      } else {
+        req.response.statusCode = 404;
       }
       await req.response.close();
     });
@@ -130,5 +141,40 @@ void main() {
     await SyncService(api: api, db: db).run(stages.add);
     expect(stages.length, greaterThanOrEqualTo(3));
     expect(stages.first, contains('下载'));
+  });
+
+  test('图像原子下载：落盘为正式名、无.tmp残留、DB改写本地路径', () async {
+    qImage = '/static/images/a.png';
+    final api = ApiService(baseUrl: 'http://127.0.0.1:${server.port}');
+    final db = await openTestDb('t_sync.db');
+
+    final r = await SyncService(api: api, db: db).run((_) {});
+    expect(r.questions, 2);
+
+    final imgDir = p.join(await getDatabasesPath(), 'upmark_images');
+    final finalFile = File(p.join(imgDir, 'a.png'));
+    expect(await finalFile.exists(), isTrue, reason: '正式名文件应存在');
+    expect(await finalFile.readAsBytes(), [1, 2, 3, 4]);
+    expect(Directory(imgDir).listSync().whereType<File>().where(
+        (f) => f.path.endsWith('.tmp')), isEmpty, reason: '不应残留.tmp');
+
+    final rows = await db.rawQuestionsOf(100);
+    expect(rows[0]['image'] as String, endsWith('a.png'));
+    expect(rows[0]['image'] as String, isNot(contains('.tmp')));
+  });
+
+  test('图像下载前清理历史.tmp半成品', () async {
+    qImage = '/static/images/a.png';
+    final api = ApiService(baseUrl: 'http://127.0.0.1:${server.port}');
+    final db = await openTestDb('t_sync.db');
+    final imgDir = p.join(await getDatabasesPath(), 'upmark_images');
+    await Directory(imgDir).create(recursive: true);
+    await File(p.join(imgDir, 'a.png.tmp')).writeAsBytes([9, 9]);
+
+    await SyncService(api: api, db: db).run((_) {});
+
+    expect(File(p.join(imgDir, 'a.png.tmp')).existsSync(), isFalse,
+        reason: '历史半成品应被清理');
+    expect(File(p.join(imgDir, 'a.png')).readAsBytesSync(), [1, 2, 3, 4]);
   });
 }

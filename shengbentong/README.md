@@ -44,7 +44,7 @@
 ```
 D:\dev\upmark\
 ├── README.md                        ← 本文件（总览导航）
-├── api_contract_v1.json             ← 前后端接口契约（机器可读）
+├── api_contract_v2.json             ← 前后端接口契约（机器可读；v1存档于git历史）
 ├── db_snapshot/                     ← 本地DB快照（联调恢复用，不入库）
 ├── shengbentong/                    ← 项目主体
 │   ├── 任务清单.md → docs/          ★全项目唯一任务清单在 docs/ 内
@@ -56,18 +56,26 @@ D:\dev\upmark\
 
 > 约定：`computer-bank/` 文件夹是纯题库资产，项目文件一律不放里面。
 
-## 5. 当前状态（2026-08-24）
+## 5. 当前状态（2026-08-25）
 
 | 任务 | 状态 |
 |------|------|
 | T-100 解析器 | ✅ 512题/0跳/0失败 |
-| T-101 测试题库 | ✅ 9科目/148题 全绿基线集（v1.3） |
+| T-101 测试题库 | ✅ 11科目/237题 全绿基线集（v1.4，含提示词验证13文件74题） |
 | T-102 FastAPI | ✅ Gate 2/3通过 |
 | T-103 App壳 | ✅ MuMu绑定+同步+离线验证通过 |
 | T-104 刷题闭环 | ✅ 29/29测试绿，MuMu刷题/材料/多选全验证 |
 | T-105 进阶 | ✅ 错题本/收藏/统计/两端同步验证通过 |
 | T-107 PC网页刷题 | ✅ 四题型+材料块+进度直写，拖拽导入 |
-| T-106 发布 | ⏳ |
+| T-108 图像题 | ✅ 【图】全链路+规范v2.2+契约v2，MuMu验收通过；考研真题图像题实战验证（6题/6图） |
+| T-112 五项加固 | ✅ 原子下载/data_version核查/自动备份/字体回退/CHECKLIST |
+| T-113 提示词v1.3+引用大扫除 | ✅ 五补丁+过期引用清零+快照675 |
+| T-114 提示词验证 | ✅ 三轮收敛v1.3最优 + 网络真题转化3科目（13文件75题全绿） |
+| T-115 Ponytail精简 | ✅ 体积2.26GB→5.7MB + DB/静态图迁LOCALAPPDATA + 14项全量测试 |
+| T-116 data_version动态化 | ✅ 死常量→DB状态推导，MuMu弱提示横幅实测弹出 |
+| T-117 全量测试 | ✅ 清零→双通道6科97题→毒化10点全拦截→报告（docs/测试报告_T-117.md） |
+| T-118 单科目删除双端 | ✅ PC DELETE端点(级联+孤儿图) + App长按删除（MuMu实测785题双端一致） |
+| T-106 发布 | 🎯 进行中 |
 
 ## 6. 开发路线
 
@@ -83,16 +91,18 @@ D:\dev\upmark\
 ## 7. 文档冲突优先级
 
 ```
-需求文档 ＞ MD格式规范v2.0 ＞ 两份设计文档 ＞ 本README
+需求文档 ＞ MD格式规范v2.2 ＞ 两份设计文档 ＞ 本README
 ```
 实现与规范冲突 → 视为实现bug。改需求/规范须升版本号。
 
 ## 8. T-103 联调速查（复制即用）
 
-> 契约唯一依据：仓库根目录 `api_contract_v1.json`。服务启动：双击 `pc_server/start.bat`
+> 契约唯一依据：仓库根目录 `api_contract_v2.json`。服务启动：双击 `pc_server/start.bat`
 
 ```bash
 # 健康检查（应返回 status:ok 与 stats）
+# 浏览器直达管理台（GET / 302重定向，T-119）
+start http://localhost:8000/
 curl http://localhost:8000/api/health
 
 # 绑定探测
@@ -119,8 +129,8 @@ http://localhost:8000/api/admin/page
 http://localhost:8000/docs
 ```
 
-**DB快照恢复**：联调数据弄乱后，用 `db_snapshot/` 内备份覆盖 `pc_server/shengbentong.db` 即可回到661题初始态。
+**DB快照恢复**：联调数据弄乱后，用 `db_snapshot/` 内备份覆盖 `pc_server/shengbentong.db` 即可回到675题初始态（含图像/LaTeX实验章节）。
 
 ```powershell
-Copy-Item db_snapshot\upmark_661.db shengbentong\pc_server\shengbentong.db -Force
+Copy-Item db_snapshot\upmark_749.db %LOCALAPPDATA%\UpMark\shengbentong.db -Force（T-115起DB在LOCALAPPDATA）
 ```

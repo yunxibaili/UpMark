@@ -119,7 +119,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       return Card(
                         elevation: 1,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(9)),
+                            borderRadius: BorderRadius.circular(10)),
                         child: ListTile(
                           leading: CircleAvatar(
                               backgroundColor: brandBlue.withValues(alpha: .12),

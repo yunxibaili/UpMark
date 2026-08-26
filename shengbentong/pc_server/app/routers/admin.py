@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import socket
 import tempfile
 import zipfile
 
@@ -12,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 
-from ..bulk_importer import import_bank, import_single_file
+from ..bulk_importer import STATIC_IMAGES, import_bank, import_single_file
 from ..models.database import Chapter, ImportLog, Question, Subject, get_db
 from ..schemas.schemas import ImportRequest
 
@@ -76,7 +77,7 @@ def admin_import(req: ImportRequest, db: Session = Depends(get_db)):
             raise HTTPException(400, detail={
                 "message": "文件未通过格式校验，已拒绝入库",
                 "errors": [result["fatal"]],
-                "hint": "请修正后重新导入；完整规则见《MD格式规范v2.0》",
+                "hint": "请修正后重新导入；完整规则见《MD格式规范v2.2》",
             })
         log = ImportLog(file_path=os.path.abspath(path), status=status,
                         report_json=json.dumps(result, ensure_ascii=False))
@@ -87,7 +88,10 @@ def admin_import(req: ImportRequest, db: Session = Depends(get_db)):
                 "report": result}
 
     # ---- 目录模式 ----
-    summary = import_bank(path)
+    try:
+        summary = import_bank(path)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
     if summary["files_failed"] and summary["questions"] == 0:
         status = "failed"
@@ -218,7 +222,10 @@ async def admin_upload(request: Request, name: str = Query(...),
                     if not dest.startswith(os.path.normpath(extract_dir)):
                         raise HTTPException(400, f"zip内含非法路径: {member}")
                 z.extractall(extract_dir)
-            summary = import_bank(extract_dir)
+            try:
+                summary = import_bank(extract_dir)
+            except ValueError as e:
+                raise HTTPException(400, str(e))
             if summary["files_failed"] and summary["questions"] == 0:
                 status = "failed"
             elif (summary["files_failed"] or summary["questions_skipped"]
@@ -244,7 +251,7 @@ async def admin_upload(request: Request, name: str = Query(...),
             raise HTTPException(400, detail={
                 "message": "文件未通过格式校验，已拒绝入库",
                 "errors": [result["fatal"]],
-                "hint": "请修正后重新拖入；完整规则见《MD格式规范v2.0》",
+                "hint": "请修正后重新拖入；完整规则见《MD格式规范v2.2》",
             })
         summary = {
             "files_total": 1,
@@ -267,3 +274,47 @@ async def admin_upload(request: Request, name: str = Query(...),
                 "report": summary}
     finally:
         shutil.rmtree(tmp_root, ignore_errors=True)
+
+
+@router.get("/lan-ip")
+def lan_ip():
+    """T-119: 服务端局域网IPv4（UDP connect 不发包，仅取路由出口地址）。"""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except OSError:
+        ip = "127.0.0.1"
+    finally:
+        s.close()
+    return {"ip": ip}
+
+
+@router.delete("/subject/{subject_id}")
+def delete_subject(subject_id: int, db: Session = Depends(get_db)):
+    """T-118: 删除指定科目——级联删除其章节/题目/答题记录（ORM all,delete-orphan），
+    并清理删除后不再被任何题目引用的图片文件。不可恢复。"""
+    subject = db.get(Subject, subject_id)
+    if subject is None:
+        raise HTTPException(404, "科目不存在")
+    chapters = db.query(Chapter).filter_by(subject_id=subject_id).all()
+    chapter_ids = [c.id for c in chapters]
+    q_rows = (db.query(Question)
+              .filter(Question.chapter_id.in_(chapter_ids)).all()
+              if chapter_ids else [])
+    img_files = {os.path.basename(q.image) for q in q_rows if q.image}
+    n_ch, n_q = len(chapters), len(q_rows)
+    db.delete(subject)          # 级联: chapters/questions/answer_records
+    db.commit()
+    # 全库复查剩余引用，删除不再被引用的图片（共用图自动保护）
+    remaining = {os.path.basename(r[0]) for r in
+                 db.query(Question.image).filter(Question.image.isnot(None)).all()}
+    removed = 0
+    for name in sorted(img_files):
+        if name in remaining:
+            continue
+        p = os.path.join(STATIC_IMAGES, name)
+        if os.path.isfile(p):
+            os.remove(p)
+            removed += 1
+    return {"deleted": {"chapters": n_ch, "questions": n_q, "images": removed}}
