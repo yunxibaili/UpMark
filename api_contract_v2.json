@@ -1,8 +1,8 @@
 {
   "contract": "shengbentong-api",
-  "version": "v2.1",
+  "version": "v2.2",
   "frozen": true,
-  "date": "2026-08-25",
+  "date": "2026-08-26",
   "supersedes": "api_contract_v1.json",
   "schema_version": 2,
   "base_url": "http://<PC局域网IP>:8000",
@@ -177,6 +177,53 @@
     },
     "GET /": {
       "desc": "v2.1新增：302重定向到管理台 /api/admin/page（浏览器输 localhost:8000 直达）"
+    },
+    "POST /api/notes/push": {
+      "desc": "v2.2新增(T-120)：App全量推送笔记到PC备份（含删除墓碑）；PC按note.id幂等upsert，updated_at较新者胜",
+      "body": {
+        "notes": [
+          {
+            "$ref": "#/schemas/note"
+          }
+        ]
+      },
+      "resp": {
+        "accepted": 12,
+        "missing_images": [
+          "ab12cd34ef56.png"
+        ]
+      },
+      "note": "missing_images为PC端缺失的笔记图片sha1文件名清单，App需逐张POST /api/notes/image补传；PC侧已存在且updated_at更新的同id笔记保留PC版"
+    },
+    "POST /api/notes/image": {
+      "desc": "v2.2新增(T-120)：上传单张笔记图片，multipart/form-data字段file（原始字节流存储，零新依赖）",
+      "query": {
+        "name": "sha1摘要文件名(如 ab12cd34ef56.png)；仅png/jpg/jpeg/gif/webp，纯文件名校验防路径穿越"
+      },
+      "resp": {
+        "stored": "ab12cd34ef56.png"
+      },
+      "storage": "%LOCALAPPDATA%/UpMark/static/note_images/"
+    },
+    "GET /api/notes/pull": {
+      "desc": "v2.2新增(T-120)：拉取全部未删除笔记（换机恢复/第二设备初始化）",
+      "resp": {
+        "exported_at": "ISO8601",
+        "notes": [
+          {
+            "$ref": "#/schemas/note"
+          }
+        ],
+        "images": [
+          "ab12cd34ef56.png"
+        ]
+      },
+      "note": "images为服务端现存全部笔记图片文件名；App入库后解析content_md中noteimg://引用，经GET /static/note_images/<name>原子下载并改写本地绝对路径"
+    },
+    "GET /static/note_images/{name}": {
+      "desc": "v2.2新增(T-120)：笔记图片静态服务（与题目图片/static/images同模式挂载）",
+      "resp": "image/* 二进制流，200；不存在404",
+      "note": "name为sha1摘要文件名；App复用原子下载(.tmp→rename)落盘离线渲染"
     }
   },
   "schemas": {
@@ -197,12 +244,22 @@
       "answer": "single:'B' | multiple:'ABD' | judgment:'T'|'F' | blank:原文多空用｜分隔",
       "accepts": "[[每空候选答案]] | null(fill_blank专用)",
       "explanation": "str 可为空串"
+    },
+    "note": {
+      "id": "string UUID(App端生成,主键)",
+      "title": "str 全局笔记标题；题目笔记为空串",
+      "content_md": "str Markdown正文；图片引用格式 ![](noteimg://<sha1名>)，公式$...$/$$...$$，代码围栏```lang",
+      "question_id": "int|null null=全局自由笔记；非空=绑定该题目(一题一篇,UNIQUE)",
+      "deleted": "bool 删除墓碑(true=已删,随push上行使PC同步删除)",
+      "created_at": "ISO8601",
+      "updated_at": "ISO8601 冲突裁决键:同id双写时较新者胜"
     }
   },
   "compat_rules": [
     "schema_version大于App支持值(App当前支持≤2) → App提示协议版本不兼容，需升级App",
     "schema_version大于App本地已同步值 → App清空本地库重新全量同步(v1→v2由本地DB onUpgrade补列无损升级)",
     "字段只增不改名；删除字段须升contract大版本",
-    "data_version与本地不同 → App提示有更新可重同步"
+    "data_version与本地不同 → App提示有更新可重同步",
+    "笔记端点为v2.2纯增量：schema_version维持2不变，旧版App不受影响；笔记与题库data_version无关"
   ]
 }

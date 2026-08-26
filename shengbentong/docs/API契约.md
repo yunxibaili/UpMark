@@ -1,6 +1,6 @@
-# 升本通 API 契约 v2.1（PC服务端 / Flutter App 共同遵守）
+# 升本通 API 契约 v2.2（PC服务端 / Flutter App 共同遵守）
 
-> 数据结构权威定义：《MD格式规范v2.2》第十一节 JSON Schema；机器可读契约：仓库根 `api_contract_v2.json`（v2.1）。本文为人读传输契约，与机器契约同步。
+> 数据结构权威定义：《MD格式规范v2.2》第十一节 JSON Schema；机器可读契约：仓库根 `api_contract_v2.json`（v2.2）。本文为人读传输契约，与机器契约同步。
 > 所有响应均为 UTF-8 JSON；错误统一走 HTTP 状态码 + `{"detail": "描述"}`。
 
 ## 0. 通用约定
@@ -114,13 +114,63 @@ GET  /static/marked.min.js         → 网页渲染库（本地内嵌，零CDN�
  "warnings": [{"code":"W310","line":88,"msg":"…"}]}
 ```
 
-## 5. 状态码约定
+## 5. 笔记备份（App ↔ PC，v2.2/T-120 新增）
+
+方向与题库相反：**App 是笔记的唯一创作源，PC 仅作备份仓库**。
+正文为纯 Markdown；图片不入库，以 sha1 文件名存 `%LOCALAPPDATA%/UpMark/static/note_images/`，
+MD 内以私有协议 `![](noteimg://<sha1名>)` 引用（Joplin 资源模式同思路）。
+
+### POST /api/notes/push          （App → PC 备份）
+```json
+{"notes": [
+  {"id": "550e8400-e29b-41d4-a716-446655440000",
+   "title": "指针易错点",              // 题目笔记为空串
+   "content_md": "…`*p++`…\n\n![](noteimg://ab12cd34ef56.png)",
+   "question_id": null,               // null=全局笔记; 90001=绑定该题(一题一篇)
+   "deleted": false,                  // true=删除墓碑,随push上行使PC同步删除
+   "created_at": "2026-08-26T09:00:00",
+   "updated_at": "2026-08-26T10:30:00"}
+]}
+```
+响应：
+```json
+{"accepted": 12, "missing_images": ["ab12cd34ef56.png"]}
+```
+语义：
+- 幂等 upsert：按 note.id 覆盖；同 id 已存在且 **PC 侧 updated_at 较新 → 保留 PC 版（新者胜）**
+- `missing_images`：PC 缺失的图片清单，App 逐张 POST /api/notes/image 补传
+
+### POST /api/notes/image?name=<sha1名>     （multipart 上传）
+form-data 字段 `file`；仅 png/jpg/jpeg/gif/webp；纯文件名校验防路径穿越（对齐 admin/upload 风格，零新依赖）。
+响应：`{"stored": "ab12cd34ef56.png"}`
+
+### GET /api/notes/pull            （PC → App 恢复）
+换机重装/第二台设备首次使用时全量拉回：
+```json
+{"exported_at": "2026-08-26T11:00:00",
+ "notes": [ /* 同 push 的 note 结构,不含墓碑 */ ],
+ "images": ["ab12cd34ef56.png"]}
+```
+App 拉取后：入库 → 解析各笔记 content_md 中 noteimg:// 引用 →
+经 `GET /static/note_images/<sha1名>` 原子下载(.tmp→rename) → 改写本地绝对路径离线渲染。
+
+### GET /static/note_images/{name}
+笔记图片静态服务（与题目图片 /static/images 同模式挂载），200/404。
+
+约束：
+- **孤儿回收**：push/pull 完成后 PC 清理无任何笔记引用的图片文件（共用图保护，同 T-118 删科目逻辑）
+- **题目失联**：PC 重导题库会使 question_id 变化；pull 时 App 校验存在性，
+  失联笔记降级为孤儿笔记保留在列表尾部展示（不丢数据）
+- **多设备同时编辑同一篇** → 后写覆盖（updated_at 裁决），个人工具已知限制
+- 笔记与 data_version 无关：笔记增删不触发题库更新提示
+
+## 6. 状态码约定
 
 | 码 | 场景 |
 |----|------|
 | 200 | 成功 |
 | 302 | GET / 重定向管理台 |
-| 400 | 请求非法（含导入零文件防误清空守卫、zip非法路径） |
+| 400 | 请求非法（含导入零文件防误清空守卫、zip非法路径、笔记图片非法文件名） |
 | 404 | 资源不存在 |
 | 422 | 请求体校验失败（Pydantic自动） |
 | 500 | 服务器异常 |
