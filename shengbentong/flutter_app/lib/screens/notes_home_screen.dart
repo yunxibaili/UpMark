@@ -1,16 +1,17 @@
-/// NotesHomeScreen — 全局笔记列表（v2.2/T-124）。
+/// NotesHomeScreen — 全局笔记列表（v2.2/T-124/T-125）。
 ///
 /// 多篇自由笔记：新建/编辑/长按删除，按更新时间倒序。
-/// 直调 DbService 与 note_image_store（与 SubjectScreen 同风格）；
-/// 备份到PC / 从PC恢复 的动作由 T-125 的 notes_backup_service 接入本页。
+/// AppBar 菜单提供「备份到PC」与「从PC恢复」（notes_backup_service）。
 library;
 
 import 'package:flutter/material.dart';
 
 import '../main.dart';
 import '../models/models.dart';
+import '../services/api_service.dart';
 import '../services/db_service.dart';
 import '../services/note_image_store.dart';
+import '../services/notes_backup_service.dart';
 import 'note_editor_screen.dart';
 
 class NotesHomeScreen extends StatefulWidget {
@@ -101,6 +102,25 @@ class _NotesHomeScreenState extends State<NotesHomeScreen> {
         foregroundColor: Colors.white,
         title: const Text('我的笔记',
             style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          PopupMenuButton<String>(
+              tooltip: '备份',
+              icon: const Icon(Icons.cloud_sync),
+              onSelected: (v) {
+                if (v == 'push') _backupToPc();
+                if (v == 'pull') _restoreFromPc();
+              },
+              itemBuilder: (_) => const [
+                    PopupMenuItem(
+                        value: 'push',
+                        child: ListTile(leading: Icon(Icons.cloud_upload),
+                            title: Text('备份到PC'))),
+                    PopupMenuItem(
+                        value: 'pull',
+                        child: ListTile(leading: Icon(Icons.cloud_download),
+                            title: Text('从PC恢复'))),
+                  ]),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
           backgroundColor: brandBlue,
@@ -197,6 +217,69 @@ class _NotesHomeScreenState extends State<NotesHomeScreen> {
         .replaceAll(RegExp(r'^[#>*\-\s]+'), '')
         .replaceAll('**', '')
         .replaceAll('`', '');
+  }
+
+  // ------------------------------------------------- 备份/恢复（T-125）
+
+  Future<void> _backupToPc() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final (db, dir) = await _env();
+      final api = await createApiFromPrefs();
+      final r = await pushBackup(api: api, db: db, databasesDir: dir);
+      await _load();
+      messenger.showSnackBar(SnackBar(
+          duration: const Duration(seconds: 2),
+          backgroundColor: okGreen,
+          content: Text('已备份 ${r.pushed} 篇到PC'
+              '${r.imagesUploaded > 0 ? '（补传${r.imagesUploaded}图）' : ''}'
+              '${r.skippedImages.isNotEmpty ? '，缺本地图${r.skippedImages.length}张' : ''}')));
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(
+          content: Text('${e.message}——备份需连接PC'),
+          backgroundColor: badRed));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(
+          content: Text('备份失败：$e'), backgroundColor: badRed));
+    }
+  }
+
+  Future<void> _restoreFromPc() async {
+    final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+            title: const Text('从PC恢复笔记？'),
+            content: const Text('本地笔记将被PC端备份整体覆盖'
+                '（含笔记图片重新下载）。'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('取消')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('恢复')),
+            ]));
+    if (confirmed != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final (db, dir) = await _env();
+      final api = await createApiFromPrefs();
+      final r =
+          await pullRestore(api: api, db: db, databasesDir: dir);
+      await _load();
+      messenger.showSnackBar(SnackBar(
+          duration: const Duration(seconds: 2),
+          backgroundColor: okGreen,
+          content: Text('已恢复 ${r.restored} 篇'
+              '（图片${r.imagesDownloaded}张'
+              '${r.failedImages.isNotEmpty ? '，失败${r.failedImages.length}' : ''}）')));
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(
+          content: Text('${e.message}——恢复需连接PC'), backgroundColor: badRed));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(
+          content: Text('恢复失败：$e'), backgroundColor: badRed));
+    }
   }
 
   static String _fmtTime(DateTime t) =>
