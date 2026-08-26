@@ -87,7 +87,10 @@ def admin_import(req: ImportRequest, db: Session = Depends(get_db)):
                 "report": result}
 
     # ---- 目录模式 ----
-    summary = import_bank(path)
+    try:
+        summary = import_bank(path)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
     if summary["files_failed"] and summary["questions"] == 0:
         status = "failed"
@@ -218,7 +221,10 @@ async def admin_upload(request: Request, name: str = Query(...),
                     if not dest.startswith(os.path.normpath(extract_dir)):
                         raise HTTPException(400, f"zip内含非法路径: {member}")
                 z.extractall(extract_dir)
-            summary = import_bank(extract_dir)
+            try:
+                summary = import_bank(extract_dir)
+            except ValueError as e:
+                raise HTTPException(400, str(e))
             if summary["files_failed"] and summary["questions"] == 0:
                 status = "failed"
             elif (summary["files_failed"] or summary["questions_skipped"]

@@ -74,6 +74,19 @@ def import_bank(bank_root: str) -> dict:
     }
     logs: list[ImportLog] = []
 
+    # T-117 防误清空守卫：扫描到 0 个练习题.md 时拒绝导入
+    # （空导入会触发"空科目自清"，曾致整个题库被清空——全量测试发现）
+    md_found = any(
+        os.path.isfile(os.path.join(bank_root, top, chap, "练习题.md"))
+        for top in os.listdir(bank_root)
+        if os.path.isdir(os.path.join(bank_root, top))
+        for chap in os.listdir(os.path.join(bank_root, top))
+    )
+    if not md_found:
+        raise ValueError(
+            f"导入目录中未发现任何 练习题.md（bank_root={os.path.abspath(bank_root)}），"
+            "已取消导入以防止误清空题库；请检查目录结构：题库根/科目/章节/练习题.md")
+
     with SessionLocal() as db:                                  # type: Session
         for top in sorted(os.listdir(bank_root)):
             subject_dir = os.path.join(bank_root, top)
