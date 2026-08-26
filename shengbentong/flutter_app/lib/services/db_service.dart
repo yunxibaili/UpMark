@@ -3,6 +3,8 @@ library;
 
 import 'dart:convert';
 
+import 'dart:io';
+
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
@@ -421,6 +423,49 @@ class DbService {
   }
 
   /// 测试/调试用：原始SQL透传
+  /// T-118: 删除指定科目的全部本地数据（题/章/科目/进度/待传队列项）+ 孤儿图片文件。
+  /// 返回删除的题目数。须在 PC 端删除成功后调用（服务器为唯一事实源）。
+  Future<int> deleteSubjectData(int subjectId) async {
+    final chapterRows =
+        await db.query('chapters', where: 'subject_id = ?', whereArgs: [subjectId]);
+    final cids = chapterRows.map((c) => c['id'] as int).toList();
+    var qcount = 0;
+    final remainingImages = <String>{};
+    for (final cid in cids) {
+      final rows = await db.query('questions',
+          where: 'chapter_id = ?', whereArgs: [cid]);
+      for (final r in rows) {
+        qcount++;
+        final qid = r['id'] as int;
+        await db.delete('sync_queue', where: 'question_id = ?', whereArgs: [qid]);
+        await db.delete('local_progress', where: 'question_id = ?', whereArgs: [qid]);
+        final img = r['image'] as String?;
+        if (img != null && img.isNotEmpty) {
+          final still = await db.rawQuery(
+              'SELECT COUNT(*) AS n FROM questions WHERE image = ? AND id != ?',
+              [img, qid]);
+          if (((still.first['n'] as int?) ?? 0) > 0) {
+            remainingImages.add(img.split('/').last);
+          }
+        }
+      }
+      await db.delete('questions', where: 'chapter_id = ?', whereArgs: [cid]);
+    }
+    await db.delete('chapters', where: 'subject_id = ?', whereArgs: [subjectId]);
+    await db.delete('subjects', where: 'id = ?', whereArgs: [subjectId]);
+    final dir = p.join(await getDefaultDatabasesDirectory(), 'upmark_images');
+    if (await Directory(dir).exists()) {
+      await for (final f in Directory(dir).list()) {
+        if (f is File && !remainingImages.contains(f.path.split('/').last)) {
+          try {
+            await f.delete();
+          } catch (_) {/* 占用等忽略 */}
+        }
+      }
+    }
+    return qcount;
+  }
+
   Future<List<Map<String, Object?>>> rawQuery(String sql,
           [List<Object?>? args]) =>
       db.rawQuery(sql, args);

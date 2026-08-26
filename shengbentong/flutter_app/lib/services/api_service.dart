@@ -123,6 +123,15 @@ class ApiService {
     if (await target.exists()) await target.delete();
     await tmpFile.rename(savePath);
   }
+
+  /// T-118: 删除PC端指定科目（级联删章/题/答题记录+孤儿图）。失败抛 ApiException。
+  Future<void> deleteSubject(int subjectId) async {
+    try {
+      await _dio.delete('/api/admin/subject/$subjectId');
+    } catch (e) {
+      throw ApiException(mapDioError(e));
+    }
+  }
 }
 
 Future<ApiService> createApiFromPrefs() async {

@@ -120,6 +120,41 @@ class _SubjectScreenState extends State<SubjectScreen> {
     }
   }
 
+  /// T-118: 长按删除科目——先调PC删除接口（在线），成功后清理本地数据。
+  Future<void> _deleteSubject(SubjectStat st) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+            title: Text('删除科目「${st.subject.name}」？'),
+            content: Text('将删除 ${st.questions} 道题及答题记录，'
+                '并同步删除PC端该科目，不可恢复。'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('取消')),
+              FilledButton(
+                  style: FilledButton.styleFrom(backgroundColor: badRed),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('删除')),
+            ]));
+    if (confirmed != true) return;
+    try {
+      final api = await createApiFromPrefs();
+      await api.deleteSubject(st.subject.id);
+      final db = await DbService.open();
+      await db.deleteSubjectData(st.subject.id);
+      await _load();
+      messenger.showSnackBar(SnackBar(
+          content: Text('已删除「${st.subject.name}」'),
+          backgroundColor: okGreen));
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(
+          content: Text('删除失败：${e.message}（删除需要连接PC）'),
+          backgroundColor: badRed));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -263,6 +298,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             child: InkWell(
               borderRadius: BorderRadius.circular(10),
+              onLongPress: () => _deleteSubject(st),
               onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => ChapterScreen(subject: st.subject))),
               child: Padding(
