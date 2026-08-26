@@ -53,6 +53,9 @@ String mapDioError(Object e) {
       DioExceptionType.connectionTimeout => '连接超时：请确认PC服务端已启动',
       DioExceptionType.receiveTimeout => '响应超时：数据量过大或网络不稳定',
       DioExceptionType.connectionError => '无法连接：IP/端口错误或PC服务端未运行',
+      // T-125: 服务端返回4xx/5xx时给人话提示（E2E实测404曾吐原始英文长文）
+      DioExceptionType.badResponse =>
+        '服务端错误(${e.response?.statusCode})：请确认PC服务端为最新版本',
       _ => e.message ?? '网络异常',
     };
   }

@@ -25,5 +25,13 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   sqflite_common_ffi: ^2.4.2+1
 
+hooks:
+  user_defines:
+    sqlite3:
+      # T-125: 构建环境无法访问 github.com（sqlite3 钩子默认从 release 下载预编译库）。
+      # Android 端实际走 sqflite 框架层，不消费此包；Windows 测试用系统 winsqlite3.dll。
+      source: system
+      name_windows: winsqlite3
+
 flutter:
   uses-material-design: true
