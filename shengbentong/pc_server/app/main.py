@@ -10,8 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from .models.database import init_db
-from .routers import admin, sync
+from .models.database import APP_DATA_DIR, init_db
+from .routers import admin, notes, sync
 
 _STATIC_DIR = os.path.normpath(os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "static"))
@@ -42,8 +42,13 @@ app.add_middleware(
 # v2.1/T-115: 题目图像在 %LOCALAPPDATA%/UpMark/static/images（bulk_importer拷入）
 from .bulk_importer import STATIC_IMAGES as _IMAGES_DIR
 os.makedirs(_IMAGES_DIR, exist_ok=True)   # StaticFiles要求目录在挂载前已存在
+# v2.2/T-120: 笔记图片在 %LOCALAPPDATA%/UpMark/static/note_images（notes路由写入）
+_NOTE_IMAGES_DIR = os.path.join(APP_DATA_DIR, "static", "note_images")
+os.makedirs(_NOTE_IMAGES_DIR, exist_ok=True)
 os.makedirs(_STATIC_DIR, exist_ok=True)
 app.mount("/static/images", StaticFiles(directory=_IMAGES_DIR), name="images")  # 具体路径先注册
+app.mount("/static/note_images", StaticFiles(directory=_NOTE_IMAGES_DIR),
+          name="note_images")                                                   # v2.2/T-120 笔记图
 app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")          # web资源(marked.min.js)
 
 @app.get("/", include_in_schema=False)
@@ -54,3 +59,4 @@ def root():
 
 app.include_router(sync.router)
 app.include_router(admin.router)
+app.include_router(notes.router)

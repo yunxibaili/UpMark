@@ -22,3 +22,19 @@ class ProgressBatch(BaseModel):
 
 class ImportRequest(BaseModel):
     path: str = Field(..., description="题库根目录或单科目目录(服务器本地路径)")
+
+
+class NoteIn(BaseModel):
+    """v2.2/T-120: 笔记推送条目（契约 schemas/note；deleted=true 为删除墓碑）"""
+    id: str = Field(..., min_length=8, max_length=64,
+                    description="App端UUID")
+    title: str = ""
+    content_md: str = ""
+    question_id: Optional[int] = None
+    deleted: bool = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class NotesPushRequest(BaseModel):
+    notes: List[NoteIn] = Field(default_factory=list)

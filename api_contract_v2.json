@@ -196,7 +196,7 @@
       "note": "missing_images为PC端缺失的笔记图片sha1文件名清单，App需逐张POST /api/notes/image补传；PC侧已存在且updated_at更新的同id笔记保留PC版"
     },
     "POST /api/notes/image": {
-      "desc": "v2.2新增(T-120)：上传单张笔记图片，multipart/form-data字段file（原始字节流存储，零新依赖）",
+      "desc": "v2.2新增(T-120)：上传单张笔记图片，原始字节流（Content-Type: application/octet-stream，零新依赖，对齐/api/admin/upload风格）",
       "query": {
         "name": "sha1摘要文件名(如 ab12cd34ef56.png)；仅png/jpg/jpeg/gif/webp，纯文件名校验防路径穿越"
       },

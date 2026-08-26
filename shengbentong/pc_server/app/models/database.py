@@ -119,6 +119,23 @@ class ImportLog(Base):
     imported_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
 
+class Note(Base):
+    """v2.2/T-120: 笔记备份镜像。App是唯一创作源，PC只存最新副本。
+    - id 为 App 端生成的UUID（主键），PC 不产生笔记身份
+    - question_id 故意不设外键：题库重导会使题目ID变化，笔记必须存活
+      （App拉取时校验存在性、失联降级孤儿展示），外键级联会丢数据
+    - 删除墓碑不入库：push 携带 deleted=true 时直接物理删除该行"""
+    __tablename__ = "notes"
+    __table_args__ = (UniqueConstraint("question_id", name="uq_notes_question"),)
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    title: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    content_md: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    question_id: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+
 def init_db() -> None:
     """建表（幂等）+ 轻量迁移。App端sqflite表结构见 flutter_app/设计文档.md 第4节。"""
     Base.metadata.create_all(engine)

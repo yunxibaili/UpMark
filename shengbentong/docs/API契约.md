@@ -140,9 +140,10 @@ MD 内以私有协议 `![](noteimg://<sha1名>)` 引用（Joplin 资源模式同
 - 幂等 upsert：按 note.id 覆盖；同 id 已存在且 **PC 侧 updated_at 较新 → 保留 PC 版（新者胜）**
 - `missing_images`：PC 缺失的图片清单，App 逐张 POST /api/notes/image 补传
 
-### POST /api/notes/image?name=<sha1名>     （multipart 上传）
-form-data 字段 `file`；仅 png/jpg/jpeg/gif/webp；纯文件名校验防路径穿越（对齐 admin/upload 风格，零新依赖）。
-响应：`{"stored": "ab12cd34ef56.png"}`
+### POST /api/notes/image?name=<sha1名>     （原始字节流上传）
+Content-Type: application/octet-stream 直发字节（App 端 dio 零 multipart 依赖，对齐 /api/admin/upload 风格）；
+仅 png/jpg/jpeg/gif/webp；纯文件名 + sha1 十六进制名校验防路径穿越。
+响应：`{"stored": "ab12cd34ef56.png"}`；非法文件名/空内容 → 400。
 
 ### GET /api/notes/pull            （PC → App 恢复）
 换机重装/第二台设备首次使用时全量拉回：
