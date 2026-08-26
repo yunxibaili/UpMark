@@ -10,6 +10,10 @@ dependencies:
   dio: ^5.11.0
   flutter:
     sdk: flutter
+  flutter_highlight: ^0.7.0
+  flutter_math_fork: ^0.7.4
+  image_picker: ^1.1.2
+  markdown: ^7.3.0
   markdown_widget: ^2.3.2+8
   path: ^1.9.1
   shared_preferences: ^2.5.5

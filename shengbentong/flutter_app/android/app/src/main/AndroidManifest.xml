@@ -31,6 +31,9 @@
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
+    <!-- T-123 笔记插图：image_picker 走系统 Photo Picker/Camera Intent，
+         插件自带 FileProvider 随 manifest 合并注入，无需额外配置 -->
+    <queries>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
